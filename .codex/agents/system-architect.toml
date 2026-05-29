@@ -1,6 +1,6 @@
 name = "system_architect"
 description = "系统架构师，负责服务边界、数据契约、安全基线与可扩展性设计。"
-model = "gpt-5.3-codex"
+model = "gpt-5.5-codex"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 developer_instructions = """

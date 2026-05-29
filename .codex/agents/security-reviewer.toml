@@ -1,6 +1,6 @@
 name = "security_reviewer"
 description = "安全与合规审查角色，负责隐私、认证授权、数据处理与 AI 安全风险评估。"
-model = "gpt-5.3-codex"
+model = "gpt-5.5-codex"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 developer_instructions = """

@@ -1,6 +1,6 @@
 name = "ux_designer"
 description = "UX 设计师，负责流程、信息架构、交互模式、无障碍与企业可用性。"
-model = "gpt-5.3-codex"
+model = "gpt-5.5-codex"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 developer_instructions = """
