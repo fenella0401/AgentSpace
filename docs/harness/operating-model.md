@@ -1,37 +1,35 @@
-# Operating Model
+# 运行模型
 
-## Product Lifecycle
+## 产品生命周期
 
-1. Discover: define user, problem, value, constraints, and success metric.
-2. Shape: write PRD, UX flow, technical approach, threat model, and eval plan.
-3. Build: implement small vertical slices behind feature flags.
-4. Verify: run tests, UX checks, security review, evals, and release checklist.
-5. Launch: roll out gradually, monitor, collect feedback, and document changes.
-6. Operate: maintain SLOs, incident response, cost controls, and improvement
-   loops.
+1. Discover：定义用户、问题、价值、约束与成功指标。
+2. Shape：完成 PRD、UX 流程、技术方案、威胁模型与评测计划。
+3. Build：在功能开关下实现小型垂直切片。
+4. Verify：执行测试、UX 检查、安全评审、评测与发布清单。
+5. Launch：渐进发布、持续监控、收集反馈并记录变更。
+6. Operate：维护 SLO、故障响应、成本控制与改进闭环。
 
-## GitHub Flow
+## GitHub 流程
 
-- `main` stays releasable.
-- Branch names should start with `feature/`, `fix/`, `docs/`, `infra/`, or
-  `experiment/`.
-- Draft PRs are for exploration; ready PRs should be reviewable and scoped.
-- Require at least one human review for production changes.
-- Use Codex review for an additional high-signal pass focused on serious risks.
+- `main` 分支始终保持可发布。
+- 分支名建议以 `feature/`、`fix/`、`docs/`、`infra/`、`experiment/` 开头。
+- Draft PR 用于探索，Ready PR 需要可评审且范围收敛。
+- 生产改动至少需要 1 位人工评审通过。
+- 使用 Codex 审查作为高信号补充，重点发现严重风险。
 
-## Issue Types
+## Issue 类型
 
-- Product brief: problem, target users, success metric, acceptance criteria.
-- Design task: flows, screens, states, accessibility, design risks.
-- Engineering task: scope, contracts, tests, migration, rollout.
-- Reliability task: SLO impact, observability, rollback, runbook.
-- Security task: data, identity, permissions, audit, AI safety.
+- 产品简报：问题、目标用户、成功指标、验收标准。
+- 设计任务：流程、页面、状态、无障碍、设计风险。
+- 工程任务：范围、契约、测试、迁移、发布。
+- 可靠性任务：SLO 影响、可观测性、回滚、运行手册。
+- 安全任务：数据、身份、权限、审计、AI 安全。
 
-## Launch Gates
+## 发布门禁
 
-- Product owner accepts the user outcome and non-goals.
-- UX flow covers empty, loading, error, permission, and narrow-screen states.
-- Security review covers authz, data handling, tool permissions, and audit logs.
-- QA verifies acceptance criteria and regression risks.
-- AI platform review verifies prompts, tools, traces, evals, and fallbacks.
-- SRE verifies deployment, rollback, observability, and incident runbook.
+- 产品负责人确认用户目标与非目标。
+- UX 覆盖空态、加载、错误、权限与窄屏状态。
+- 安全评审覆盖授权、数据处理、工具权限与审计日志。
+- QA 验证验收标准与回归风险。
+- AI 平台评审验证提示词、工具、追踪、评测与回退。
+- SRE 验证部署、回滚、可观测性与故障运行手册。

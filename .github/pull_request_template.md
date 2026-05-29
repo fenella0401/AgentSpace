@@ -1,20 +1,20 @@
-# Summary
+# 变更摘要
 
 - 
 
-# Acceptance Criteria
+# 验收检查
 
-- [ ] User outcome is clear.
-- [ ] Product, UX, security, QA, and SRE implications are considered.
-- [ ] Tests or evals cover changed behavior.
-- [ ] Docs, runbooks, or migration notes are updated if needed.
+- [ ] 用户目标清晰。
+- [ ] 已考虑产品、UX、安全、QA 与 SRE 影响。
+- [ ] 测试或评测已覆盖变更行为。
+- [ ] 如有需要，已更新文档、运行手册或迁移说明。
 
-# Verification
+# 验证记录
 
 - 
 
-# Risks And Rollout
+# 风险与发布
 
-- Risk:
-- Rollout:
-- Rollback:
+- 风险：
+- 发布：
+- 回滚：

@@ -1,34 +1,32 @@
-# GitHub Setup
+# GitHub 配置
 
-## Repository Setup
+## 仓库初始化
 
-1. Create a private GitHub repository for AgentSpace.
-2. Push this local repository to GitHub.
-3. Enable branch protection for `main`.
-4. Require pull request reviews and status checks before merge.
-5. Add CODEOWNERS teams or users in `.github/CODEOWNERS`.
+1. 为 AgentSpace 创建私有 GitHub 仓库。
+2. 将当前本地仓库推送到 GitHub。
+3. 为 `main` 启用分支保护。
+4. 合并前要求 PR 审查与状态检查通过。
+5. 在 `.github/CODEOWNERS` 配置代码归属团队或用户。
 
-## Codex Review Automation
+## Codex 审查自动化
 
-The workflow `.github/workflows/codex-pr-review.yml` runs Codex review on
-non-draft pull requests.
+工作流 `.github/workflows/codex-pr-review.yml` 会在非草稿 PR 上执行 Codex 审查。
 
-Required setup:
+必需配置：
 
-- Add repository secret `OPENAI_API_KEY`.
-- Keep `.github/codex/prompts/pr-review.md` aligned with current review policy.
-- Enable Codex cloud/code review for the repository if your organization uses
-  GitHub comment workflows such as `@codex review`.
+- 添加仓库密钥 `OPENAI_API_KEY`。
+- 保持 `.github/codex/prompts/pr-review.md` 与当前审查策略一致。
+- 若组织使用 `@codex review` 等评论流，请启用仓库级 Codex 云端/代码审查能力。
 
-## Suggested Branch Protection
+## 建议分支保护策略
 
-- Require linear history.
-- Require PR approval from code owners.
-- Require status checks for tests, lint, typecheck, and Codex PR review.
-- Block force pushes to `main`.
-- Require signed commits if company policy requires it.
+- 要求线性历史。
+- 要求 CODEOWNERS 审批。
+- 要求测试、lint、typecheck 与 Codex PR 审查状态检查通过。
+- 禁止对 `main` 强推。
+- 若公司策略要求，开启签名提交。
 
-## Suggested Labels
+## 建议标签
 
 - `area:product`
 - `area:ux`

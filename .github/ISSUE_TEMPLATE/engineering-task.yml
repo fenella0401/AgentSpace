@@ -1,34 +1,34 @@
-name: Engineering Task
-description: Track an implementation, infrastructure, or technical design task.
+name: 工程任务
+description: 跟踪实现、基础设施或技术设计相关任务。
 title: "[Engineering] "
 labels: ["type:feature"]
 body:
   - type: textarea
     id: objective
     attributes:
-      label: Objective
-      description: What should change?
+      label: 目标
+      description: 需要发生什么变化？
     validations:
       required: true
   - type: textarea
     id: approach
     attributes:
-      label: Proposed Approach
-      description: Include APIs, data, UI, AI workflow, or infrastructure notes.
+      label: 方案
+      description: 请包含 API、数据、UI、AI 工作流或基础设施说明。
   - type: textarea
     id: tests
     attributes:
-      label: Verification
-      description: Tests, evals, or manual checks needed.
+      label: 验证
+      description: 需要哪些测试、评测或人工检查？
     validations:
       required: true
   - type: textarea
     id: rollout
     attributes:
-      label: Rollout And Rollback
-      description: Feature flags, migrations, monitoring, rollback plan.
+      label: 发布与回滚
+      description: 功能开关、迁移、监控与回滚方案。
   - type: textarea
     id: risks
     attributes:
-      label: Risks
-      description: Security, privacy, reliability, cost, or compatibility risks.
+      label: 风险
+      description: 安全、隐私、可靠性、成本或兼容性风险。

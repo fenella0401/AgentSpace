@@ -1,41 +1,38 @@
-# AgentSpace Product Brief
+# AgentSpace 产品简报
 
-## Vision
+## 愿景
 
-AgentSpace is the internal AI workspace where employees can discover approved
-agents, run governed AI workflows, and improve company-specific automation with
-clear ownership, policy, and observability.
+AgentSpace 是企业内部 AI 工作空间，帮助员工发现已批准智能体、执行受治理的 AI 工作流，并在明确归属、策略与可观测性前提下持续改进企业专属自动化能力。
 
-## Target Users
+## 目标用户
 
-- Employees who need safe access to company-approved AI assistants.
-- Domain teams that want reusable AI workflows for support, operations, sales,
-  engineering, finance, HR, or knowledge work.
-- Admins who manage identity, permissions, connectors, policies, and audit logs.
-- AI platform owners who govern prompts, tools, evals, cost, and model usage.
-- SRE and security teams who operate and review the platform.
+- 需要安全使用公司批准 AI 助手的员工。
+- 希望复用 AI 工作流的业务团队（支持、运营、销售、工程、财务、HR、知识管理等）。
+- 管理身份、权限、连接器、策略与审计日志的管理员。
+- 负责 prompts、tools、evals、成本和模型策略的 AI 平台团队。
+- 负责平台运行与审查的 SRE 与安全团队。
 
-## Initial Product Surface
+## 初始产品面
 
-- Agent catalog with owners, use cases, permissions, and quality signals.
-- Chat and workflow runner for approved internal agents.
-- Workflow builder for controlled prompt, tool, and connector composition.
-- Admin console for RBAC, policies, connectors, audit logs, and model settings.
-- Evaluation and trace views for debugging and continuous improvement.
-- Operational dashboard for usage, latency, cost, errors, and safety events.
+- 智能体目录：包含 owner、use case、权限与质量信号。
+- 聊天与工作流运行器：用于公司已批准内部智能体。
+- 工作流构建器：支持受控 prompt、tool、connector 组合。
+- 管理控制台：覆盖 RBAC、策略、连接器、审计日志与模型配置。
+- 评测与追踪视图：用于调试与持续优化。
+- 运营看板：跟踪使用量、延迟、成本、错误与安全事件。
 
-## MVP Principles
+## MVP 原则
 
-- Start with one high-value internal workflow and one reusable platform pattern.
-- Make every agent workflow auditable and owned.
-- Default to least privilege for tools, connectors, and data access.
-- Measure outcome quality with evals before broad rollout.
-- Launch behind feature flags with a clear feedback and incident process.
+- 从一个高价值内部工作流与一个可复用平台模式起步。
+- 每个智能体工作流都必须可审计且有明确 owner。
+- 工具、连接器与数据访问默认最小权限。
+- 通过评测验证结果质量后再扩大范围。
+- 在功能开关后发布，并具备清晰反馈与故障处置流程。
 
-## Open Decisions
+## 待决策项
 
-- Primary web stack and hosting platform.
-- Identity provider and RBAC source of truth.
-- Data connector priorities and approval process.
-- Model/provider policy and budget guardrails.
-- Trace retention, redaction, and compliance requirements.
+- Web 技术栈与托管平台。
+- 身份提供方与 RBAC 单一事实源。
+- 数据连接器优先级与审批流程。
+- 模型/供应商策略与预算护栏。
+- 追踪保留期限、脱敏策略与合规要求。

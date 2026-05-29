@@ -21,10 +21,9 @@ job_max_runtime_seconds = 3600
 
 [auto_review]
 policy = """
-AgentSpace is an internal AI SaaS product. Prefer approval for commands that
-touch credentials, production data, deployments, billing, IAM, or destructive
-filesystem operations. Reject actions that expose secrets or copy internal data
-outside the workspace.
+AgentSpace 是企业内部 AI SaaS 产品。对涉及凭证、生产数据、部署、计费、IAM
+或破坏性文件系统操作的命令，默认倾向要求审批。拒绝任何会暴露密钥或将内部
+数据复制到工作区外部的行为。
 """
 
 [shell_environment_policy]

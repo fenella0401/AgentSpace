@@ -1,24 +1,21 @@
 # AgentSpace
 
-AgentSpace is an internal Web SaaS product for company AI systems. This
-repository is initialized with a Codex-style harness: project instructions,
-specialized subagents, GitHub review automation, and operating documents for a
-10-person product engineering team.
+AgentSpace 是公司内部 AI 系统使用的 Web SaaS 产品。本仓库已初始化为
+Codex 风格 harness，包含项目指引、专业子代理、GitHub 审查自动化与面向
+10 人产品工程团队的协作运行文档。
 
-## Harness Quick Start
+## Harness 快速开始
 
-1. Review the product brief in `docs/product/brief.md`.
-2. Review team roles and workflows in `docs/harness/`.
-3. Connect the repository to GitHub.
-4. Add the `OPENAI_API_KEY` repository secret if using the Codex GitHub Action.
-5. Open work through GitHub issues and small pull requests.
+1. 阅读产品简报：`docs/product/brief.md`。
+2. 阅读团队角色与流程：`docs/harness/`。
+3. 将仓库连接到 GitHub。
+4. 如需使用 Codex GitHub Action，配置仓库密钥 `OPENAI_API_KEY`。
+5. 通过 GitHub Issue 与小型 Pull Request 推进工作。
 
-## Suggested First Milestones
+## 建议的首批里程碑
 
-- M0: Product scope, target users, system boundaries, and success metrics.
-- M1: Architecture, identity model, AI workflow contracts, and threat model.
-- M2: Design prototype for agent catalog, chat/workflow runner, admin console,
-  audit views, and workflow builder.
-- M3: MVP implementation with auth, RBAC, one approved agent workflow, traces,
-  evals, and deployment pipeline.
-- M4: Beta launch, operational runbooks, incident process, and improvement loop.
+- M0：明确产品范围、目标用户、系统边界与成功指标。
+- M1：完成架构、身份模型、AI 工作流契约与威胁模型。
+- M2：完成智能体目录、聊天/工作流运行器、管理控制台、审计视图与工作流构建器的设计原型。
+- M3：实现 MVP，包括认证、RBAC、一个已批准工作流、追踪、评测与部署流水线。
+- M4：Beta 发布，补齐运维手册、故障流程与持续改进闭环。

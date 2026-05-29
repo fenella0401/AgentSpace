@@ -1,38 +1,38 @@
-name: Product Brief
-description: Define a product problem, scope, and acceptance criteria.
+name: 产品简报
+description: 定义产品问题、范围与验收标准。
 title: "[Product] "
 labels: ["area:product", "type:feature"]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: Problem
-      description: What user or business problem are we solving?
+      label: 问题
+      description: 我们要解决什么用户或业务问题？
     validations:
       required: true
   - type: textarea
     id: users
     attributes:
-      label: Users
-      description: Who is affected and what job are they trying to complete?
+      label: 用户
+      description: 哪些人会受到影响？他们要完成什么任务？
     validations:
       required: true
   - type: textarea
     id: scope
     attributes:
-      label: Scope
-      description: What is in scope and out of scope?
+      label: 范围
+      description: 哪些内容在范围内，哪些不在范围内？
     validations:
       required: true
   - type: textarea
     id: acceptance
     attributes:
-      label: Acceptance Criteria
-      description: What must be true before this ships?
+      label: 验收标准
+      description: 上线前必须满足哪些条件？
     validations:
       required: true
   - type: textarea
     id: risks
     attributes:
-      label: Risks
-      description: Product, UX, security, data, AI, or operational risks.
+      label: 风险
+      description: 产品、UX、安全、数据、AI 或运行风险。
