@@ -1,0 +1,14 @@
+# Replace these placeholder teams after creating the GitHub organization.
+
+* @agentspace/core
+
+/docs/product/ @agentspace/product
+/docs/harness/ @agentspace/product @agentspace/engineering
+/.codex/ @agentspace/engineering
+/.github/ @agentspace/engineering
+
+# Future application ownership examples:
+# /apps/web/ @agentspace/frontend
+# /services/api/ @agentspace/backend
+# /services/ai/ @agentspace/ai-platform
+# /infra/ @agentspace/sre
