@@ -1,6 +1,6 @@
 name = "ai_platform_engineer"
 description = "AI 平台工程师，负责智能体编排、提示词/版本管理、评测、工具策略与链路追踪。"
-model = "gpt-5.5-codex"
+model = "gpt-5.5"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 developer_instructions = """

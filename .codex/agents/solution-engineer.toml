@@ -1,6 +1,6 @@
 name = "solution_engineer"
 description = "解决方案工程师，负责内部干系人需求梳理、集成方案与落地适配。"
-model = "gpt-5.5-codex"
+model = "gpt-5.5"
 model_reasoning_effort = "medium"
 sandbox_mode = "read-only"
 developer_instructions = """

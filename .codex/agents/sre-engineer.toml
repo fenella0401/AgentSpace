@@ -1,6 +1,6 @@
 name = "sre_engineer"
 description = "SRE 工程师，负责部署、可靠性、可观测性、故障响应与运行手册。"
-model = "gpt-5.5-codex"
+model = "gpt-5.5"
 model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"
 developer_instructions = """

@@ -1,6 +1,6 @@
 name = "product_manager"
 description = "产品经理，负责 AgentSpace 需求探索、PRD、路线图、指标与发布范围定义。"
-model = "gpt-5.5-codex"
+model = "gpt-5.5"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 developer_instructions = """

@@ -1,6 +1,6 @@
 name = "frontend_engineer"
 description = "前端工程师，负责 AgentSpace SaaS 界面、设计系统与交互实现。"
-model = "gpt-5.5-codex"
+model = "gpt-5.5"
 model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"
 developer_instructions = """
