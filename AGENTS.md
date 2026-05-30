@@ -1,60 +1,49 @@
-# AgentSpace Agent Instructions
+# AgentSpace 代理协作指引
 
-## Product Context
+## 产品背景
 
-AgentSpace is a Web SaaS product for an internal company AI system. It should
-help employees discover, use, govern, and improve approved AI agents and
-workflows. Treat the product as enterprise software that handles confidential
-business data, identity, audit trails, and policy enforcement.
+AgentSpace 是公司内部 AI 系统使用的 Web SaaS 产品。
+它应帮助员工发现、使用、治理并持续改进已批准的 AI 智能体与工作流。
+请将该产品视为企业级软件，需处理机密业务数据、身份体系、审计链路与策略执行。
 
-## Operating Model
+## 运行模式
 
-- Work through GitHub issues, small pull requests, and reviewable artifacts.
-- Start substantial work by clarifying the user, workflow, risk, and acceptance
-  criteria before implementation.
-- Keep product, UX, solution engineering, security, QA, SRE, and development
-  concerns visible from discovery through launch.
-- Prefer scoped changes that can be reviewed, tested, and shipped safely.
-- Document assumptions and decisions in `docs/product/` or `docs/harness/`.
-- Do not commit secrets, credentials, customer data, or generated private logs.
+- 通过 GitHub Issue、小型 Pull Request 和可审查产物推进工作。
+- 在实施较大改动前，先明确用户、工作流、风险与验收标准。
+- 从需求探索到发布上线，全程保持产品、UX、解决方案工程、安全、QA、SRE 与研发关注点可见。
+- 优先选择范围可控、可评审、可测试、可安全上线的改动。
+- 将假设与关键决策记录在 `docs/product/` 或 `docs/harness/`。
+- 不要提交密钥、凭证、客户数据或生成的私有日志。
 
-## Architecture Guardrails
+## 架构护栏
 
-- Build for tenant isolation, role-based access control, auditability, and
-  least-privilege integrations from the first version.
-- Every AI workflow should have an owner, input/output contract, tool policy,
-  traceability, eval strategy, and fallback behavior.
-- Store prompts, policies, model choices, and eval fixtures in versioned files
-  when possible.
-- Separate product UI, application APIs, AI orchestration, data connectors,
-  observability, and deployment concerns.
-- Prefer boring infrastructure and explicit interfaces over hidden coupling.
+- 从第一版开始即面向租户隔离、基于角色的访问控制、可审计性与最小权限集成设计。
+- 每个 AI 工作流都应具备 owner、输入/输出契约、工具策略、可追踪性、评测策略与回退行为。
+- 在可行时，将 prompts、策略、模型选择与评测样例存储为可版本化文件。
+- 明确分离产品 UI、应用 API、AI 编排、数据连接器、可观测性与部署关注点。
+- 优先采用稳健朴素的基础设施与显式接口，避免隐式耦合。
 
-## Engineering Expectations
+## 工程要求
 
-- Discover the existing stack before adding dependencies or conventions.
-- Add or update tests when behavior changes.
-- Run the narrowest meaningful verification before handing work back.
-- Keep public APIs backward compatible unless a migration is documented.
-- Make accessibility, localization readiness, and responsive behavior part of
-  normal frontend work.
-- Use structured parsers and typed contracts for config, API payloads, and evals.
+- 在引入新依赖或新约定前，先识别并遵循现有技术栈。
+- 当行为发生变化时，新增或更新相应测试。
+- 交付前执行最小但有意义的验证。
+- 除非已有迁移说明，否则保持公共 API 向后兼容。
+- 将无障碍、本地化准备度和响应式行为纳入常规前端工作。
+- 对配置、API 载荷与评测数据使用结构化解析与类型化契约。
 
-## Review Guidelines
+## 评审准则
 
-- Lead with correctness, security, privacy, reliability, and missing test risks.
-- Treat authz bypass, data leakage, unsafe tool execution, prompt injection,
-  audit gaps, and secret exposure as release blockers.
-- Check that logs and traces do not include sensitive business data by default.
-- Verify that AI outputs are bounded by policy, evals, and human escalation
-  paths for high-impact workflows.
-- Avoid style-only review comments unless they hide a real operational risk.
+- 评审优先关注正确性、安全、隐私、可靠性以及缺失测试风险。
+- 将授权绕过、数据泄漏、不安全工具执行、提示词注入、审计缺口与密钥暴露视为发布阻塞项。
+- 默认检查日志与追踪是否包含敏感业务数据。
+- 对高影响工作流，验证 AI 输出是否受策略、评测与人工升级路径约束。
+- 除非样式问题会掩盖真实运行风险，否则避免仅样式类评审意见。
 
-## Definition Of Done
+## 完成定义
 
-- User story and acceptance criteria are clear.
-- Design, API, data, security, observability, and rollout implications are
-  considered.
-- Tests or evals cover the changed behavior at the right level.
-- Docs, runbooks, or migration notes are updated when behavior changes.
-- The PR explains what changed, how it was verified, and remaining risks.
+- 用户故事与验收标准清晰。
+- 已考虑设计、API、数据、安全、可观测性与发布影响。
+- 测试或评测在合适层级覆盖了变更行为。
+- 行为变更时已更新文档、运行手册或迁移说明。
+- PR 说明了改动内容、验证方式与剩余风险。
