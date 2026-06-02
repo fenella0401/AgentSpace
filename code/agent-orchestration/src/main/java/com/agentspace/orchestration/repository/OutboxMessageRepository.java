@@ -12,4 +12,8 @@ import java.util.List;
 public interface OutboxMessageRepository extends JpaRepository<OutboxMessage, String> {
 
     List<OutboxMessage> findByStatusAndNextRetryAtBefore(String status, OffsetDateTime before);
+
+    List<OutboxMessage> findByStatus(String status);
+
+    long countByStatus(String status);
 }

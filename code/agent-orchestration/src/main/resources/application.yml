@@ -25,12 +25,32 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
-# 仅暴露健康检查。
+# 编排运行时参数：超时与重试（全局默认 + per-executorType 覆盖）。
+orchestration:
+  max-retries: 2
+  step-timeout: 30m
+  heartbeat-timeout: 5m
+  scheduler-poll-interval: 2s
+  scheduler-poll-interval-ms: 2000
+  outbox:
+    max-retries: 8
+    backoff-base-seconds: 2
+    max-pending: 10000
+    poll-interval-ms: 1000
+  watchdog:
+    poll-interval-ms: 5000
+  # 示例：per-executorType 覆盖
+  # overrides:
+  #   CODEX:
+  #     max-retries: 1
+  #     step-timeout: 20m
+
+# 暴露健康检查与 Prometheus 指标。
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
       show-details: when-authorized

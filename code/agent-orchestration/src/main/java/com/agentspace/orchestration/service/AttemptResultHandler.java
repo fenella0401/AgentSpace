@@ -39,8 +39,11 @@ public class AttemptResultHandler {
     private final StepDependencyRepository depRepo;
     private final RunStateRecalculator runRecalc;
     private final StepLauncher stepLauncher;
+    private final DownstreamTrigger downstreamTrigger;
     private final AgentFlowCodec codec;
     private final OrchestrationProperties props;
+    private final OutboxService outboxService;
+    private final OrchestrationMetrics metrics;
 
     public AttemptResultHandler(WorkflowRunRepository runRepo,
                                 WorkflowStepRepository stepRepo,
@@ -48,16 +51,22 @@ public class AttemptResultHandler {
                                 StepDependencyRepository depRepo,
                                 RunStateRecalculator runRecalc,
                                 StepLauncher stepLauncher,
+                                DownstreamTrigger downstreamTrigger,
                                 AgentFlowCodec codec,
-                                OrchestrationProperties props) {
+                                OrchestrationProperties props,
+                                OutboxService outboxService,
+                                OrchestrationMetrics metrics) {
         this.runRepo = runRepo;
         this.stepRepo = stepRepo;
         this.attemptRepo = attemptRepo;
         this.depRepo = depRepo;
         this.runRecalc = runRecalc;
         this.stepLauncher = stepLauncher;
+        this.downstreamTrigger = downstreamTrigger;
         this.codec = codec;
         this.props = props;
+        this.outboxService = outboxService;
+        this.metrics = metrics;
     }
 
     /**
@@ -81,12 +90,15 @@ public class AttemptResultHandler {
         if (step.isRequiresConfirmation()) {
             step.setStatus(StepStatus.SUSPENDED);
             touch(step);
+            outboxService.enqueueStateChange(attempt.getRunId(), step.getId(), attemptId,
+                    "step.suspended",
+                    java.util.Map.of("stepId", step.getId(), "stepKey", step.getStepKey()));
             log.info("step {} 成功且需确认 → SUSPENDED", step.getStepKey());
         } else {
             step.setStatus(StepStatus.COMPLETED);
             step.setFinishedAt(OffsetDateTime.now());
             touch(step);
-            triggerDownstream(step);
+            downstreamTrigger.triggerDownstream(step);
         }
         recalcRun(attempt.getRunId());
     }
@@ -102,6 +114,7 @@ public class AttemptResultHandler {
             return;
         }
         markAttemptTerminal(attempt, AttemptStatus.FAILED, failureReason, errorMessage);
+        metrics.recordFailure(failureReason);
 
         WorkflowStep step = stepRepo.findById(attempt.getStepId()).orElseThrow();
         int maxRetries = props.maxRetriesFor(step.getExecutorType());
@@ -125,32 +138,6 @@ public class AttemptResultHandler {
         recalcRun(attempt.getRunId());
     }
 
-    /** 下游 step 的全部上游都 COMPLETED → 置 READY。 */
-    private void triggerDownstream(WorkflowStep completedStep) {
-        String runId = completedStep.getRunId();
-        List<StepDependency> downstream = depRepo.findByRunIdAndFromStepKey(runId, completedStep.getStepKey());
-        for (StepDependency dep : downstream) {
-            stepRepo.findByRunIdAndStepKey(runId, dep.getToStepKey()).ifPresent(target -> {
-                if (target.getStatus() == StepStatus.PENDING && allUpstreamCompleted(runId, target.getStepKey())) {
-                    target.setStatus(StepStatus.READY);
-                    touch(target);
-                    log.info("step {} 全部上游完成 → READY", target.getStepKey());
-                }
-            });
-        }
-    }
-
-    private boolean allUpstreamCompleted(String runId, String stepKey) {
-        List<StepDependency> upstream = depRepo.findByRunIdAndToStepKey(runId, stepKey);
-        for (StepDependency dep : upstream) {
-            WorkflowStep from = stepRepo.findByRunIdAndStepKey(runId, dep.getFromStepKey()).orElse(null);
-            if (from == null || from.getStatus() != StepStatus.COMPLETED) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private void markAttemptTerminal(StepAttempt attempt, AttemptStatus status,
                                      String failureReason, String errorMessage) {
         attempt.setStatus(status);
@@ -162,7 +149,19 @@ public class AttemptResultHandler {
     }
 
     private void recalcRun(String runId) {
-        runRepo.findById(runId).ifPresent(runRecalc::recalculate);
+        runRepo.findById(runId).ifPresent(run -> {
+            com.agentspace.orchestration.model.RunStatus before = run.getStatus();
+            com.agentspace.orchestration.model.RunStatus after = runRecalc.recalculate(run);
+            // run 状态变更回流 Agent-Management（控制类，始终入 outbox）
+            if (after != before
+                    && (after == com.agentspace.orchestration.model.RunStatus.COMPLETED
+                        || after == com.agentspace.orchestration.model.RunStatus.FAILED
+                        || after == com.agentspace.orchestration.model.RunStatus.SUSPENDED)) {
+                outboxService.enqueueStateChange(runId, null, null,
+                        "run." + after.name().toLowerCase(),
+                        java.util.Map.of("runId", runId, "status", after.name()));
+            }
+        });
     }
 
     private void touch(WorkflowStep step) {

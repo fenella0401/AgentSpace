@@ -2,8 +2,12 @@ package com.agentspace.orchestration.controller;
 
 import com.agentspace.orchestration.controller.dto.ErrorResponse;
 import com.agentspace.orchestration.service.AgentFlowValidationException;
+import com.agentspace.orchestration.service.EventAttributionException;
 import com.agentspace.orchestration.service.IdempotencyConflictException;
 import com.agentspace.orchestration.service.PromptRenderException;
+import com.agentspace.orchestration.service.StepActionConflictException;
+import com.agentspace.orchestration.service.StepActionNotFoundException;
+import com.agentspace.orchestration.service.StepActionValidationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -42,6 +46,30 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handlePromptRender(PromptRenderException ex) {
         return ResponseEntity.unprocessableEntity()
                 .body(ErrorResponse.of("PROMPT_RENDER_ERROR", ex.getMessage()));
+    }
+
+    @ExceptionHandler(EventAttributionException.class)
+    public ResponseEntity<ErrorResponse> handleAttribution(EventAttributionException ex) {
+        return ResponseEntity.unprocessableEntity()
+                .body(ErrorResponse.of("VALIDATION_ERROR", ex.getMessage()));
+    }
+
+    @ExceptionHandler(StepActionConflictException.class)
+    public ResponseEntity<ErrorResponse> handleStepConflict(StepActionConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of("CONFLICT", ex.getMessage()));
+    }
+
+    @ExceptionHandler(StepActionValidationException.class)
+    public ResponseEntity<ErrorResponse> handleStepValidation(StepActionValidationException ex) {
+        return ResponseEntity.unprocessableEntity()
+                .body(ErrorResponse.of("VALIDATION_ERROR", ex.getMessage()));
+    }
+
+    @ExceptionHandler(StepActionNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleStepNotFound(StepActionNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of("NOT_FOUND", ex.getMessage()));
     }
 
     @ExceptionHandler(ResponseStatusException.class)

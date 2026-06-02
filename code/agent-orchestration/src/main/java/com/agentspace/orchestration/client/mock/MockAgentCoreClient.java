@@ -15,6 +15,7 @@ import com.agentspace.orchestration.model.event.EventSource;
 import com.agentspace.orchestration.model.event.EventTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +23,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -38,14 +40,17 @@ public class MockAgentCoreClient implements AgentCoreClient {
 
     private final MockAgentCoreProperties props;
     private final EventSink eventSink;
+    private final Executor emitExecutor;
 
     /** attemptId -> 已分配的 runtimeAttemptRef，用于幂等与 query/cancel。 */
     private final Map<String, String> runtimeRefs = new ConcurrentHashMap<>();
     private final Map<String, AttemptStatus> statuses = new ConcurrentHashMap<>();
 
-    public MockAgentCoreClient(MockAgentCoreProperties props, EventSink eventSink) {
+    public MockAgentCoreClient(MockAgentCoreProperties props, EventSink eventSink,
+                               @Qualifier("mockEmitExecutor") Executor emitExecutor) {
         this.props = props;
         this.eventSink = eventSink;
+        this.emitExecutor = emitExecutor;
     }
 
     @Override
@@ -55,8 +60,6 @@ public class MockAgentCoreClient implements AgentCoreClient {
         String runtimeRef = runtimeRefs.computeIfAbsent(attemptId,
                 k -> "mock-rt-" + UUID.randomUUID());
 
-        sleepQuietly(props.startDelayMs());
-
         if (props.behavior() == MockAgentCoreProperties.Behavior.TIMEOUT) {
             // 模拟超时：标记 running 后不再推进终态，留给 Agent-Orchestration watchdog 兜底
             statuses.put(attemptId, AttemptStatus.RUNNING);
@@ -65,7 +68,11 @@ public class MockAgentCoreClient implements AgentCoreClient {
         }
 
         statuses.put(attemptId, AttemptStatus.RUNNING);
-        emitEvents(request, runtimeRef);
+        // 异步推事件：模拟真实 Agent Core 的异步回调，并让外层（startRun）事务先提交
+        emitExecutor.execute(() -> {
+            sleepQuietly(props.startDelayMs());
+            emitEvents(request, runtimeRef);
+        });
         return new StartAttemptResponse(runtimeRef, AttemptStatus.STARTING);
     }
 

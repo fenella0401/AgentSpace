@@ -1,12 +1,8 @@
 package com.agentspace.orchestration.service;
 
-import com.agentspace.orchestration.client.AgentCoreClient;
-import com.agentspace.orchestration.client.dto.StartAttemptRequest;
-import com.agentspace.orchestration.client.dto.StartAttemptResponse;
-import com.agentspace.orchestration.model.AttemptStatus;
-import com.agentspace.orchestration.model.AttemptTrigger;
 import com.agentspace.orchestration.model.RunStatus;
 import com.agentspace.orchestration.model.StepStatus;
+import com.agentspace.orchestration.model.AttemptTrigger;
 import com.agentspace.orchestration.model.entity.StepAttempt;
 import com.agentspace.orchestration.model.entity.StepDependency;
 import com.agentspace.orchestration.model.entity.WorkflowRun;
@@ -24,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,10 +28,9 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * run 生命周期编排（M2 范围）：启动 run → 落库快照 / 建 step+dependency → 算首批 ready
- * → 渲染 prompt → 调 Agent Core StartAttempt。见详细设计 §2.1、概要设计 §7、§9.2。
- *
- * <p>MVP 串行：多个 ready 时按 order_index 选一个启动。完整状态机与调度循环在 FE2。
+ * run 生命周期编排：启动 run → 落库快照 / 建 step+dependency → 算首批 ready → 交调度启动。
+ * 见详细设计 §2.1、概要设计 §7、§9.2。实际 step 启动委托 {@link StepLauncher}，
+ * 状态推进委托 {@link AttemptResultHandler}。
  */
 @Service
 public class RunService {
@@ -49,8 +43,7 @@ public class RunService {
     private final StepAttemptRepository attemptRepo;
     private final AgentFlowValidator validator;
     private final AgentFlowCodec codec;
-    private final PromptRenderer promptRenderer;
-    private final AgentCoreClient agentCoreClient;
+    private final StepLauncher stepLauncher;
 
     public RunService(WorkflowRunRepository runRepo,
                       WorkflowStepRepository stepRepo,
@@ -58,28 +51,22 @@ public class RunService {
                       StepAttemptRepository attemptRepo,
                       AgentFlowValidator validator,
                       AgentFlowCodec codec,
-                      PromptRenderer promptRenderer,
-                      AgentCoreClient agentCoreClient) {
+                      StepLauncher stepLauncher) {
         this.runRepo = runRepo;
         this.stepRepo = stepRepo;
         this.depRepo = depRepo;
         this.attemptRepo = attemptRepo;
         this.validator = validator;
         this.codec = codec;
-        this.promptRenderer = promptRenderer;
-        this.agentCoreClient = agentCoreClient;
+        this.stepLauncher = stepLauncher;
     }
 
     /**
      * 启动一次 run。按 idempotencyKey 幂等：命中已存在 run 直接返回其当前状态。
-     *
-     * @return 已持久化的 WorkflowRun（含最新状态）
      */
     @Transactional
     public WorkflowRun startRun(AgentFlow flow) {
         String idempotencyKey = flow.run().idempotencyKey();
-
-        // 幂等：命中已存在 run 直接返回
         Optional<WorkflowRun> existing = runRepo.findByIdempotencyKey(idempotencyKey);
         if (existing.isPresent()) {
             WorkflowRun run = existing.get();
@@ -88,14 +75,13 @@ public class RunService {
             return run;
         }
 
-        // DAG 结构校验（422）
         validator.validate(flow);
 
         WorkflowRun run = persistRun(flow);
         Map<String, WorkflowStep> stepsByKey = persistSteps(run, flow);
         persistDependencies(run, flow);
-
-        scheduleFirstReadyStep(run, flow, stepsByKey);
+        markInitialReady(run, flow, stepsByKey);
+        launchFirstReady(run, flow);
         return run;
     }
 
@@ -156,105 +142,31 @@ public class RunService {
         }
     }
 
-    /**
-     * 算首批 ready，串行选 order_index 最小的一个启动。run → RUNNING，step → RUNNING，建 attempt。
-     */
-    private void scheduleFirstReadyStep(WorkflowRun run, AgentFlow flow, Map<String, WorkflowStep> stepsByKey) {
+    /** 入度为 0 的 step 置 READY。 */
+    private void markInitialReady(WorkflowRun run, AgentFlow flow, Map<String, WorkflowStep> stepsByKey) {
         List<String> stepKeys = flow.steps().stream().map(AgentFlowStep::id).toList();
         Set<String> ready = DagSupport.initialReady(stepKeys, flow.edges());
-        if (ready.isEmpty()) {
+        for (String key : ready) {
+            WorkflowStep step = stepsByKey.get(key);
+            step.setStatus(StepStatus.READY);
+            step.setUpdatedAt(OffsetDateTime.now());
+            stepRepo.save(step);
+        }
+    }
+
+    /** MVP 串行：在初始 ready 中选 order_index 最小者启动，run → RUNNING。 */
+    private void launchFirstReady(WorkflowRun run, AgentFlow flow) {
+        Optional<WorkflowStep> first = stepRepo.findByRunIdAndStatus(run.getId(), StepStatus.READY).stream()
+                .min((a, b) -> Integer.compare(a.getOrderIndex(), b.getOrderIndex()));
+        if (first.isEmpty()) {
             log.warn("run {} 无初始 ready step（DAG 异常）", run.getId());
             return;
         }
-
-        // 串行：选 order_index 最小者
-        String chosenKey = ready.stream()
-                .min((a, b) -> Integer.compare(
-                        stepsByKey.get(a).getOrderIndex(), stepsByKey.get(b).getOrderIndex()))
-                .orElseThrow();
-        WorkflowStep step = stepsByKey.get(chosenKey);
-        AgentFlowStep flowStep = flow.steps().stream()
-                .filter(s -> s.id().equals(chosenKey)).findFirst().orElseThrow();
-
-        String renderedPrompt = renderPrompt(flow, flowStep);
-        step.setRenderedPrompt(renderedPrompt);
-        step.setStatus(StepStatus.RUNNING);
-        step.setStartedAt(OffsetDateTime.now());
-        step.setUpdatedAt(OffsetDateTime.now());
-        stepRepo.save(step);
-
-        StepAttempt attempt = createAttempt(run, step, AttemptTrigger.INITIAL);
-        callStartAttempt(run, step, flowStep, attempt, renderedPrompt);
-
+        stepLauncher.launch(run, first.get(), flow, AttemptTrigger.INITIAL, null, null);
         run.setStatus(RunStatus.RUNNING);
         run.setStartedAt(OffsetDateTime.now());
         run.setUpdatedAt(OffsetDateTime.now());
         runRepo.save(run);
-    }
-
-    private String renderPrompt(AgentFlow flow, AgentFlowStep flowStep) {
-        Map<String, String> context = new HashMap<>();
-        // 全局变量 + step 局部变量（上游 stepOutput 在 M2 首 step 阶段为空，FE2 补）
-        addFlatVariables(context, "", flow.variables());
-        addFlatVariables(context, "", flowStep.prompt().variables());
-        return promptRenderer.render(flowStep.prompt().template(), context);
-    }
-
-    @SuppressWarnings("unchecked")
-    private void addFlatVariables(Map<String, String> out, String prefix, Map<String, Object> vars) {
-        if (vars == null) {
-            return;
-        }
-        for (Map.Entry<String, Object> e : vars.entrySet()) {
-            String key = prefix.isEmpty() ? e.getKey() : prefix + "." + e.getKey();
-            Object v = e.getValue();
-            if (v instanceof Map<?, ?> nested) {
-                addFlatVariables(out, key, (Map<String, Object>) nested);
-            } else if (v != null) {
-                out.put(key, String.valueOf(v));
-            }
-        }
-    }
-
-    private StepAttempt createAttempt(WorkflowRun run, WorkflowStep step, AttemptTrigger trigger) {
-        int nextNo = attemptRepo.findByStepId(step.getId()).size() + 1;
-        OffsetDateTime now = OffsetDateTime.now();
-        StepAttempt attempt = new StepAttempt();
-        attempt.setId("att-" + UUID.randomUUID());
-        attempt.setRunId(run.getId());
-        attempt.setStepId(step.getId());
-        attempt.setAttemptNo(nextNo);
-        attempt.setStatus(AttemptStatus.PENDING);
-        attempt.setTrigger(trigger);
-        attempt.setCreatedAt(now);
-        attempt.setUpdatedAt(now);
-        return attemptRepo.save(attempt);
-    }
-
-    private void callStartAttempt(WorkflowRun run, WorkflowStep step, AgentFlowStep flowStep,
-                                  StepAttempt attempt, String renderedPrompt) {
-        AgentFlow flow = codec.fromJson(run.getAgentFlowJson());
-        StartAttemptRequest req = new StartAttemptRequest(
-                run.getId(), step.getId(), step.getStepKey(), attempt.getId(), attempt.getAttemptNo(),
-                flowStep.agent().executorType(), renderedPrompt,
-                flowStep.agent().agentSnapshotRef(),
-                flowStep.agent().skillSnapshotRefs(),
-                flowStep.agent().mcpSnapshotRefs(),
-                List.of(),
-                flow.workspace(), flow.repo(), flow.credentials(),
-                "evt-" + run.getId(), "log-" + run.getId(),
-                attempt.getResumeFromSessionRef());
-
-        attempt.setStatus(AttemptStatus.STARTING);
-        attempt.setUpdatedAt(OffsetDateTime.now());
-        attemptRepo.save(attempt);
-
-        StartAttemptResponse resp = agentCoreClient.startAttempt(req);
-        attempt.setRuntimeAttemptRef(resp.runtimeAttemptRef());
-        attempt.setUpdatedAt(OffsetDateTime.now());
-        attemptRepo.save(attempt);
-        log.info("StartAttempt 调用完成 run={} step={} attempt={} runtimeRef={}",
-                run.getId(), step.getStepKey(), attempt.getId(), resp.runtimeAttemptRef());
     }
 
     @Transactional(readOnly = true)
@@ -269,6 +181,6 @@ public class RunService {
 
     @Transactional(readOnly = true)
     public List<StepAttempt> findAttempts(String stepId) {
-        return new ArrayList<>(attemptRepo.findByStepId(stepId));
+        return attemptRepo.findByStepId(stepId);
     }
 }

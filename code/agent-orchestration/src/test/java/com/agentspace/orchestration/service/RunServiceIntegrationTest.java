@@ -1,7 +1,5 @@
 package com.agentspace.orchestration.service;
 
-import com.agentspace.orchestration.model.AttemptStatus;
-import com.agentspace.orchestration.model.RunStatus;
 import com.agentspace.orchestration.model.StepStatus;
 import com.agentspace.orchestration.model.entity.StepAttempt;
 import com.agentspace.orchestration.model.entity.WorkflowRun;
@@ -20,14 +18,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 /**
- * M2 启动链路集成测试（test + mock profile，H2 + Flyway + mock Agent Core）。
- * 验证：提交三步 AgentFlow → run RUNNING、首 step RUNNING、attempt 创建；idempotencyKey 幂等。
+ * M2 启动链路集成测试（test + mock profile）。mock 异步推事件，用 awaitility 等待收敛。
+ * 验证：提交三步 AgentFlow → 落库 step、prompt 渲染、attempt 建立并最终成功；idempotencyKey 幂等。
  */
 @SpringBootTest
 @ActiveProfiles({"test", "mock"})
@@ -57,31 +57,34 @@ class RunServiceIntegrationTest {
                         new AgentFlowEdge("fix", "verify")));
     }
 
+    private WorkflowStep step(String runId, String key) {
+        return runService.findSteps(runId).stream()
+                .filter(s -> s.getStepKey().equals(key)).findFirst().orElseThrow();
+    }
+
     @Test
-    void startRunDrivesFirstStepRunningAndCreatesAttempt() {
+    void startRunPersistsStepsAndRendersFirstPrompt() {
         WorkflowRun run = runService.startRun(threeStepFlow("idem-1"));
+        String runId = run.getId();
 
-        assertThat(run.getStatus()).isEqualTo(RunStatus.RUNNING);
-
-        List<WorkflowStep> steps = runService.findSteps(run.getId());
+        List<WorkflowStep> steps = runService.findSteps(runId);
         assertThat(steps).hasSize(3);
 
-        WorkflowStep analyze = steps.stream()
-                .filter(s -> s.getStepKey().equals("analyze")).findFirst().orElseThrow();
-        // 首 step 已渲染 prompt 并进入 RUNNING
-        assertThat(analyze.getStatus()).isEqualTo(StepStatus.RUNNING);
-        assertThat(analyze.getRenderedPrompt()).isEqualTo("分析 实现登录");
+        // 首 step 已渲染 prompt（启动时同步完成）
+        assertThat(step(runId, "analyze").getRenderedPrompt()).isEqualTo("分析 实现登录");
 
-        // 下游 step 仍 PENDING
-        WorkflowStep fix = steps.stream()
-                .filter(s -> s.getStepKey().equals("fix")).findFirst().orElseThrow();
-        assertThat(fix.getStatus()).isEqualTo(StepStatus.PENDING);
+        // 首 step 已建 attempt 并经 mock 拿到 runtimeRef
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            List<StepAttempt> attempts = runService.findAttempts(step(runId, "analyze").getId());
+            assertThat(attempts).hasSize(1);
+            assertThat(attempts.get(0).getRuntimeAttemptRef()).startsWith("mock-rt-");
+        });
 
-        // 首 step 已建 attempt 且经 mock StartAttempt 拿到 runtimeRef
-        List<StepAttempt> attempts = runService.findAttempts(analyze.getId());
-        assertThat(attempts).hasSize(1);
-        assertThat(attempts.get(0).getRuntimeAttemptRef()).startsWith("mock-rt-");
-        assertThat(attempts.get(0).getStatus()).isEqualTo(AttemptStatus.STARTING);
+        // mock 异步成功 → analyze 最终 COMPLETED；下游 fix 变 READY
+        await().atMost(Duration.ofSeconds(5))
+                .until(() -> step(runId, "analyze").getStatus() == StepStatus.COMPLETED);
+        await().atMost(Duration.ofSeconds(5))
+                .until(() -> step(runId, "fix").getStatus() == StepStatus.READY);
     }
 
     @Test
@@ -90,7 +93,6 @@ class RunServiceIntegrationTest {
         WorkflowRun second = runService.startRun(threeStepFlow("idem-dup"));
 
         assertThat(second.getId()).isEqualTo(first.getId());
-        // 不重复建 step
         assertThat(runService.findSteps(first.getId())).hasSize(3);
     }
 }

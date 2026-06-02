@@ -15,6 +15,7 @@ import com.agentspace.orchestration.repository.StepAttemptRepository;
 import com.agentspace.orchestration.repository.WorkflowStepRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
@@ -36,18 +37,19 @@ public class StepLauncher {
     private final StepAttemptRepository attemptRepo;
     private final AgentFlowCodec codec;
     private final PromptRenderer promptRenderer;
-    private final AgentCoreClient agentCoreClient;
+    private final ObjectProvider<AgentCoreClient> agentCoreClientProvider;
 
     public StepLauncher(WorkflowStepRepository stepRepo,
                         StepAttemptRepository attemptRepo,
                         AgentFlowCodec codec,
                         PromptRenderer promptRenderer,
-                        AgentCoreClient agentCoreClient) {
+                        ObjectProvider<AgentCoreClient> agentCoreClientProvider) {
         this.stepRepo = stepRepo;
         this.attemptRepo = attemptRepo;
         this.codec = codec;
         this.promptRenderer = promptRenderer;
-        this.agentCoreClient = agentCoreClient;
+        // 用 ObjectProvider 懒取，打破 mock→EventSink→...→AgentCoreClient 的构造期循环依赖
+        this.agentCoreClientProvider = agentCoreClientProvider;
     }
 
     /**
@@ -146,7 +148,7 @@ public class StepLauncher {
         attempt.setUpdatedAt(OffsetDateTime.now());
         attemptRepo.save(attempt);
 
-        StartAttemptResponse resp = agentCoreClient.startAttempt(req);
+        StartAttemptResponse resp = agentCoreClientProvider.getObject().startAttempt(req);
         attempt.setRuntimeAttemptRef(resp.runtimeAttemptRef());
         attempt.setUpdatedAt(OffsetDateTime.now());
         attemptRepo.save(attempt);

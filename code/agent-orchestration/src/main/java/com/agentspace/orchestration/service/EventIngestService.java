@@ -1,5 +1,6 @@
 package com.agentspace.orchestration.service;
 
+import com.agentspace.orchestration.controller.dto.DisplayEventMessage;
 import com.agentspace.orchestration.model.AttemptStatus;
 import com.agentspace.orchestration.model.entity.ProcessedEvent;
 import com.agentspace.orchestration.model.entity.StepAttempt;
@@ -34,17 +35,23 @@ public class EventIngestService {
     private final StepAttemptRepository attemptRepo;
     private final WorkflowEventRepository eventRepo;
     private final AttemptResultHandler resultHandler;
+    private final RunEventBroadcaster broadcaster;
+    private final OutboxService outboxService;
     private final ObjectMapper objectMapper;
 
     public EventIngestService(ProcessedEventRepository processedRepo,
                               StepAttemptRepository attemptRepo,
                               WorkflowEventRepository eventRepo,
                               AttemptResultHandler resultHandler,
+                              RunEventBroadcaster broadcaster,
+                              OutboxService outboxService,
                               ObjectMapper objectMapper) {
         this.processedRepo = processedRepo;
         this.attemptRepo = attemptRepo;
         this.eventRepo = eventRepo;
         this.resultHandler = resultHandler;
+        this.broadcaster = broadcaster;
+        this.outboxService = outboxService;
         this.objectMapper = objectMapper;
     }
 
@@ -66,7 +73,15 @@ public class EventIngestService {
         switch (category) {
             case CONTROL -> handleControl(event, attempt);
             case RUNTIME -> handleRuntime(event, attempt);
-            case DISPLAY -> { /* 留存即可；实时推送由 FE4 接管 */ }
+            case DISPLAY -> {
+                broadcaster.publish(event.runId(), new DisplayEventMessage(
+                        event.eventId(), event.eventType(), "display",
+                        event.sequence(), writePayload(event.payload())));
+                // 回流 Agent-Management 供历史回放（受背压降采样）
+                outboxService.enqueueDisplay(event.runId(), event.stepId(), event.attemptId(),
+                        Map.of("eventId", event.eventId(), "eventType", event.eventType(),
+                                "sequenceNo", event.sequence()));
+            }
         }
 
         if (event.eventId() != null) {

@@ -70,6 +70,22 @@ public class StepAttempt {
     @Column(name = "finished_at")
     private OffsetDateTime finishedAt;
 
+    // FE3 乱序合并暂存：attempt.result 与 runtime.* 可乱序到达，先到者暂存，齐了再定终态。见 §8.4。
+    @Column(name = "pending_result_status", length = 20)
+    private String pendingResultStatus;     // SUCCEEDED / FAILED
+
+    @Column(name = "pending_result_summary")
+    private String pendingResultSummary;
+
+    @Column(name = "pending_result_detail")
+    private String pendingResultDetail;
+
+    @Column(name = "pending_session_ref", length = 256)
+    private String pendingSessionRef;
+
+    @Column(name = "runtime_terminal", length = 20)
+    private String runtimeTerminal;         // COMPLETED / FAILED / CANCELLED
+
     @Version
     @Column(nullable = false)
     private int version;
@@ -203,6 +219,46 @@ public class StepAttempt {
 
     public void setFinishedAt(OffsetDateTime finishedAt) {
         this.finishedAt = finishedAt;
+    }
+
+    public String getPendingResultStatus() {
+        return pendingResultStatus;
+    }
+
+    public void setPendingResultStatus(String pendingResultStatus) {
+        this.pendingResultStatus = pendingResultStatus;
+    }
+
+    public String getPendingResultSummary() {
+        return pendingResultSummary;
+    }
+
+    public void setPendingResultSummary(String pendingResultSummary) {
+        this.pendingResultSummary = pendingResultSummary;
+    }
+
+    public String getPendingResultDetail() {
+        return pendingResultDetail;
+    }
+
+    public void setPendingResultDetail(String pendingResultDetail) {
+        this.pendingResultDetail = pendingResultDetail;
+    }
+
+    public String getPendingSessionRef() {
+        return pendingSessionRef;
+    }
+
+    public void setPendingSessionRef(String pendingSessionRef) {
+        this.pendingSessionRef = pendingSessionRef;
+    }
+
+    public String getRuntimeTerminal() {
+        return runtimeTerminal;
+    }
+
+    public void setRuntimeTerminal(String runtimeTerminal) {
+        this.runtimeTerminal = runtimeTerminal;
     }
 
     public int getVersion() {

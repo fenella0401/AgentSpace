@@ -23,7 +23,8 @@ public record OrchestrationProperties(
         Duration stepTimeout,
         Duration heartbeatTimeout,
         Duration schedulerPollInterval,
-        Map<ExecutorType, ExecutorOverride> overrides
+        Map<ExecutorType, ExecutorOverride> overrides,
+        Outbox outbox
 ) {
 
     public OrchestrationProperties {
@@ -42,6 +43,9 @@ public record OrchestrationProperties(
         if (overrides == null) {
             overrides = Map.of();
         }
+        if (outbox == null) {
+            outbox = new Outbox(0, 0, 0);
+        }
     }
 
     /** per-executorType 覆盖项；字段为空表示沿用全局默认。 */
@@ -50,6 +54,27 @@ public record OrchestrationProperties(
             Duration stepTimeout,
             Duration heartbeatTimeout
     ) {
+    }
+
+    /**
+     * outbox 回流与背压配置。
+     *
+     * @param maxRetries        投递失败的最大重试次数
+     * @param backoffBaseSeconds 指数退避基数（next = base * 2^retry）
+     * @param maxPending        PENDING 积压阈值；超过则展示类事件降采样（不再入 outbox）
+     */
+    public record Outbox(int maxRetries, int backoffBaseSeconds, long maxPending) {
+        public Outbox {
+            if (maxRetries <= 0) {
+                maxRetries = 8;
+            }
+            if (backoffBaseSeconds <= 0) {
+                backoffBaseSeconds = 2;
+            }
+            if (maxPending <= 0) {
+                maxPending = 10_000;
+            }
+        }
     }
 
     public int maxRetriesFor(ExecutorType type) {

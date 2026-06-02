@@ -45,7 +45,7 @@ class MockAgentCoreClientTest {
     @Test
     void succeedEmitsResultAndCompletedInOrder() {
         CollectingSink sink = new CollectingSink();
-        MockAgentCoreClient client = new MockAgentCoreClient(props(MockAgentCoreProperties.Behavior.SUCCEED), sink);
+        MockAgentCoreClient client = new MockAgentCoreClient(props(MockAgentCoreProperties.Behavior.SUCCEED), sink, Runnable::run);
 
         StartAttemptResponse resp = client.startAttempt(request());
 
@@ -67,7 +67,7 @@ class MockAgentCoreClientTest {
     @Test
     void failEmitsRuntimeFailed() {
         CollectingSink sink = new CollectingSink();
-        MockAgentCoreClient client = new MockAgentCoreClient(props(MockAgentCoreProperties.Behavior.FAIL), sink);
+        MockAgentCoreClient client = new MockAgentCoreClient(props(MockAgentCoreProperties.Behavior.FAIL), sink, Runnable::run);
 
         client.startAttempt(request());
 
@@ -79,7 +79,7 @@ class MockAgentCoreClientTest {
     @Test
     void timeoutEmitsNoTerminalEvent() {
         CollectingSink sink = new CollectingSink();
-        MockAgentCoreClient client = new MockAgentCoreClient(props(MockAgentCoreProperties.Behavior.TIMEOUT), sink);
+        MockAgentCoreClient client = new MockAgentCoreClient(props(MockAgentCoreProperties.Behavior.TIMEOUT), sink, Runnable::run);
 
         client.startAttempt(request());
 
@@ -93,7 +93,7 @@ class MockAgentCoreClientTest {
     @Test
     void startAttemptIsIdempotent() {
         CollectingSink sink = new CollectingSink();
-        MockAgentCoreClient client = new MockAgentCoreClient(props(MockAgentCoreProperties.Behavior.SUCCEED), sink);
+        MockAgentCoreClient client = new MockAgentCoreClient(props(MockAgentCoreProperties.Behavior.SUCCEED), sink, Runnable::run);
 
         StartAttemptResponse first = client.startAttempt(request());
         StartAttemptResponse second = client.startAttempt(request());
@@ -104,7 +104,7 @@ class MockAgentCoreClientTest {
     @Test
     void cancelReportsRuntimeFound() {
         CollectingSink sink = new CollectingSink();
-        MockAgentCoreClient client = new MockAgentCoreClient(props(MockAgentCoreProperties.Behavior.SUCCEED), sink);
+        MockAgentCoreClient client = new MockAgentCoreClient(props(MockAgentCoreProperties.Behavior.SUCCEED), sink, Runnable::run);
         client.startAttempt(request());
 
         CancelAttemptResponse resp = client.cancelAttempt(new CancelAttemptRequest("attempt-1", true));

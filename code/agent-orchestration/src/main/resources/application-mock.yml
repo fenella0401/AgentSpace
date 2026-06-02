@@ -3,7 +3,7 @@
 mock:
   agent-core:
     behavior: SUCCEED        # SUCCEED / FAIL / TIMEOUT
-    start-delay-ms: 0
+    start-delay-ms: 300      # 异步推事件前的延迟，确保 startRun 事务已提交（mock 实现细节）
     emit-display-events: true
     event-count: 3
     failure-reason: EXECUTOR_FAILED
