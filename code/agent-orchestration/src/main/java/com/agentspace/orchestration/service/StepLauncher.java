@@ -182,12 +182,21 @@ public class StepLauncher {
         attempt.setUpdatedAt(OffsetDateTime.now());
         attemptRepo.save(attempt);
 
-        StartAttemptResponse resp = agentCoreClientProvider.getObject().startAttempt(req);
-        attempt.setRuntimeAttemptRef(resp.runtimeAttemptRef());
-        attempt.setUpdatedAt(OffsetDateTime.now());
-        attemptRepo.save(attempt);
-        log.info("StartAttempt run={} step={} attempt={} no={} trigger={} runtimeRef={}",
-                run.getId(), step.getStepKey(), attempt.getId(), attempt.getAttemptNo(),
-                attempt.getTrigger(), resp.runtimeAttemptRef());
+        try {
+            StartAttemptResponse resp = agentCoreClientProvider.getObject().startAttempt(req);
+            attempt.setRuntimeAttemptRef(resp.runtimeAttemptRef());
+            attempt.setUpdatedAt(OffsetDateTime.now());
+            attemptRepo.save(attempt);
+            log.info("StartAttempt run={} step={} attempt={} no={} trigger={} runtimeRef={}",
+                    run.getId(), step.getStepKey(), attempt.getId(), attempt.getAttemptNo(),
+                    attempt.getTrigger(), resp.runtimeAttemptRef());
+        } catch (Exception e) {
+            // StartAttempt 连接中断/超时：不回滚、不退回 READY（避免重复起 attempt）。
+            // attempt 保持 STARTING（已存库，带 attemptId），由 reconcile/watchdog 后续 query 对齐。见 §3.5、§11#1。
+            attempt.setErrorMessage("StartAttempt 调用失败，待恢复: " + e.getMessage());
+            attempt.setUpdatedAt(OffsetDateTime.now());
+            attemptRepo.save(attempt);
+            log.warn("StartAttempt 调用失败 attempt={}，保持 STARTING 待恢复: {}", attempt.getId(), e.getMessage());
+        }
     }
 }

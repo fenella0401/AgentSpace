@@ -46,6 +46,10 @@ public class MockAgentCoreClient implements AgentCoreClient {
     private final Map<String, String> runtimeRefs = new ConcurrentHashMap<>();
     private final Map<String, AttemptStatus> statuses = new ConcurrentHashMap<>();
 
+    /** 测试用：模拟 StartAttempt 调用因连接中断抛异常。registered=请求是否已“送达”Agent Core。 */
+    private volatile boolean failStart = false;
+    private volatile boolean failStartAfterRegister = false;
+
     public MockAgentCoreClient(MockAgentCoreProperties props, EventSink eventSink,
                                @Qualifier("mockEmitExecutor") Executor emitExecutor) {
         this.props = props;
@@ -56,9 +60,19 @@ public class MockAgentCoreClient implements AgentCoreClient {
     @Override
     public StartAttemptResponse startAttempt(StartAttemptRequest request) {
         String attemptId = request.attemptId();
+
+        // 模拟连接中断：请求未送达 Agent Core（无记录），抛异常
+        if (failStart) {
+            throw new IllegalStateException("[mock] StartAttempt 连接中断（未送达）attempt=" + attemptId);
+        }
         // 幂等：重复 start 返回已有 runtimeAttemptRef
         String runtimeRef = runtimeRefs.computeIfAbsent(attemptId,
                 k -> "mock-rt-" + UUID.randomUUID());
+        // 模拟连接中断：请求已送达、Agent Core 已起 attempt（runtimeRefs 已记），但响应丢失
+        if (failStartAfterRegister) {
+            statuses.put(attemptId, AttemptStatus.RUNNING);
+            throw new IllegalStateException("[mock] StartAttempt 响应丢失（已送达）attempt=" + attemptId);
+        }
 
         if (props.behavior() == MockAgentCoreProperties.Behavior.TIMEOUT) {
             // 模拟超时：标记 running 后不再推进终态，留给 Agent-Orchestration watchdog 兜底
@@ -88,14 +102,30 @@ public class MockAgentCoreClient implements AgentCoreClient {
 
     @Override
     public QueryAttemptResponse queryAttempt(String attemptId) {
+        boolean found = runtimeRefs.containsKey(attemptId);
+        if (!found) {
+            // Agent Core 未收到/已回收该 attempt：reconcile 据此判 RUNTIME_CREATE_FAILED
+            return new QueryAttemptResponse(attemptId, false, null, null, null, null, null);
+        }
         AttemptStatus status = statuses.getOrDefault(attemptId, AttemptStatus.PENDING);
         return new QueryAttemptResponse(
                 attemptId,
+                true,
                 runtimeRefs.get(attemptId),
                 status,
                 Instant.now(),
                 status == AttemptStatus.SUCCEEDED ? 0 : null,
                 status == AttemptStatus.FAILED ? props.failureReason() : null);
+    }
+
+    /** 测试用：StartAttempt 抛异常且请求未送达（Agent Core 无记录，query 返回 not-found）。 */
+    public void setFailStart(boolean fail) {
+        this.failStart = fail;
+    }
+
+    /** 测试用：StartAttempt 抛异常但请求已送达（Agent Core 已起 attempt，query 能找到 RUNNING）。 */
+    public void setFailStartAfterRegister(boolean fail) {
+        this.failStartAfterRegister = fail;
     }
 
     /**

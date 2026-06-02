@@ -42,12 +42,30 @@
 - [ ] 指标面板（Prometheus + Grafana）：`orchestration.attempts.running`、`orchestration.outbox.pending`、`orchestration.attempt.failures`
 - [ ] 告警：队列积压、调度器/runtime 无心跳、连接器错误率、outbox 投递失败、成本异常
 
+## Agent Core API 中断的恢复机制
+
+升级 / 网络导致 Agent Core API 中断时，按中断位置分别由以下机制兜底（已实现 + 测试）：
+
+- **StartAttempt 调用中断**：`StepLauncher` 捕获异常，attempt 保持 `STARTING`（不回滚、不退回 READY、
+  不重复起 attempt），由后续 reconcile / watchdog 对齐。
+- **STARTING 卡死**：`Watchdog` 扫 `created_at` 超过 `orchestration.start-timeout`（默认 2m）的 STARTING
+  attempt，触发 `ReconciliationService.reconcileOne`。
+- **reconcile 据 Agent Core 实况判定**（`QueryAttemptResponse.found`）：
+  - 未找到（StartAttempt 未送达）→ `RUNTIME_CREATE_FAILED` → step 自动重试（起全新 attemptId，无重复执行）；
+  - 已在跑但本地 STARTING（响应丢失）→ 本地对齐成 RUNNING，补 `runtimeAttemptRef`；
+  - 终态 → 推进成功 / 失败。
+- **本服务重启**：`ReconciliationRunner` 启动时对所有 in-flight attempt 跑一次 reconcile。
+- **执行中事件丢失**：watchdog 心跳 / 硬超时兜底；回流 AM 由 outbox 至少一次。
+
+> 依赖：真实 Agent Core 必须保证 **StartAttempt 幂等**（同 attemptId 重复调返回同一 RuntimeAttempt）
+> 与 **QueryAttempt 可按 attemptId 查 found/状态**。见下方真实 client 要求。
+
 ## 已知遗留优化项（非阻塞）
 
-- **StartAttempt 的事务时机**：当前 `StepLauncher` 在 run/step 事务内调 Agent Core StartAttempt。
-  更稳健的做法是注册 `afterCommit` 钩子在外层事务提交后再调，避免本地回滚产生 Agent Core 孤儿
-  attempt。mock 当前以小延迟（`mock.agent-core.start-delay-ms`）规避事务可见性竞态；真实接入时
-  改为 afterCommit。
+- **真实 HTTP AgentCoreClient**：尚未实现（当前 `UnconfiguredAgentCoreClient` 占位 + mock）。真实实现须带
+  连接 / 读超时、有限重试，并依赖 StartAttempt 幂等键（用 attemptId）。StartAttempt 调用时机可进一步优化为
+  外层事务 `afterCommit` 后再调，避免本地回滚产生 Agent Core 孤儿 attempt（当前已通过"中断保持 STARTING +
+  reconcile 对齐"覆盖主要风险）。mock 以小延迟（`mock.agent-core.start-delay-ms`）规避事务可见性竞态。
 - **outbox display 事件回流**：当前展示事件回流受背压降采样；如需保证历史回放完整性，
   可考虑展示事件独立队列或分级保留策略。
 - **run 级全局事件序号**：`workflow_event.sequence_no` 为 attempt 内序号，跨 attempt 的 SSE

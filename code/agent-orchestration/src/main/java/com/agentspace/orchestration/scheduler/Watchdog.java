@@ -10,6 +10,7 @@ import com.agentspace.orchestration.model.entity.WorkflowStep;
 import com.agentspace.orchestration.repository.StepAttemptRepository;
 import com.agentspace.orchestration.repository.WorkflowStepRepository;
 import com.agentspace.orchestration.service.AttemptResultHandler;
+import com.agentspace.orchestration.service.ReconciliationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -36,17 +37,20 @@ public class Watchdog {
     private final WorkflowStepRepository stepRepo;
     private final OrchestrationProperties props;
     private final AttemptResultHandler resultHandler;
+    private final ReconciliationService reconciliationService;
     private final ObjectProvider<AgentCoreClient> agentCoreClientProvider;
 
     public Watchdog(StepAttemptRepository attemptRepo,
                     WorkflowStepRepository stepRepo,
                     OrchestrationProperties props,
                     AttemptResultHandler resultHandler,
+                    ReconciliationService reconciliationService,
                     ObjectProvider<AgentCoreClient> agentCoreClientProvider) {
         this.attemptRepo = attemptRepo;
         this.stepRepo = stepRepo;
         this.props = props;
         this.resultHandler = resultHandler;
+        this.reconciliationService = reconciliationService;
         this.agentCoreClientProvider = agentCoreClientProvider;
     }
 
@@ -63,6 +67,13 @@ public class Watchdog {
 
         for (StepAttempt attempt : stale) {
             handleStale(attempt, now);
+        }
+
+        // STARTING 卡死（StartAttempt 中断未确认）：超 startTimeout 调 reconcile 对齐（query found? → 失败重试/对齐 RUNNING）
+        for (StepAttempt attempt : attemptRepo.findByStatusAndCreatedAtBefore(
+                AttemptStatus.STARTING, now.minus(props.startTimeout()))) {
+            log.warn("watchdog 命中卡死 STARTING attempt {}，触发 reconcile 对齐", attempt.getId());
+            reconciliationService.reconcileOne(attempt.getId());
         }
     }
 

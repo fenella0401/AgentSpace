@@ -22,6 +22,7 @@ public record OrchestrationProperties(
         int maxRetries,
         Duration stepTimeout,
         Duration heartbeatTimeout,
+        Duration startTimeout,
         Duration schedulerPollInterval,
         Map<ExecutorType, ExecutorOverride> overrides,
         Outbox outbox
@@ -36,6 +37,9 @@ public record OrchestrationProperties(
         }
         if (heartbeatTimeout == null) {
             heartbeatTimeout = Duration.ofMinutes(5);
+        }
+        if (startTimeout == null) {
+            startTimeout = Duration.ofMinutes(2);   // STARTING 卡死兜底（StartAttempt 中断未确认）
         }
         if (schedulerPollInterval == null) {
             schedulerPollInterval = Duration.ofSeconds(2);

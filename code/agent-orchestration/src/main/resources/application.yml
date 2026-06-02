@@ -30,6 +30,7 @@ orchestration:
   max-retries: 2
   step-timeout: 30m
   heartbeat-timeout: 5m
+  start-timeout: 2m
   scheduler-poll-interval: 2s
   scheduler-poll-interval-ms: 2000
   outbox:

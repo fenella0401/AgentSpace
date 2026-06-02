@@ -36,5 +36,8 @@ public interface StepAttemptRepository extends JpaRepository<StepAttempt, String
 
     /** RUNNING 且启动早于阈值的 attempt（watchdog 硬超时扫描）。 */
     List<StepAttempt> findByStatusAndStartedAtBefore(AttemptStatus status, OffsetDateTime before);
+
+    /** STARTING 且创建早于阈值的 attempt（watchdog 扫描启动卡死：StartAttempt 中断未确认）。 */
+    List<StepAttempt> findByStatusAndCreatedAtBefore(AttemptStatus status, OffsetDateTime before);
 }
 
