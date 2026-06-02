@@ -4,11 +4,11 @@ on:
   push:
     branches: [main, twp_dev]
     paths:
-      - 'Code/agent-orchestration/**'
+      - 'code/agent-orchestration/**'
       - '.github/workflows/agent-orchestration-ci.yml'
   pull_request:
     paths:
-      - 'Code/agent-orchestration/**'
+      - 'code/agent-orchestration/**'
       - '.github/workflows/agent-orchestration-ci.yml'
 
 permissions:
@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: Code/agent-orchestration
+        working-directory: code/agent-orchestration
 
     steps:
       - name: Checkout
