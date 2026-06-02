@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 验证 mock profile 下应用上下文正常加载，且 {@link AgentCoreClient} 被装配为 mock 实现。
  */
 @SpringBootTest
-@ActiveProfiles("mock")
+@ActiveProfiles({"test", "mock"})
 class MockProfileContextTest {
 
     @Autowired
