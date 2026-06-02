@@ -1,6 +1,6 @@
 # Agent-Orchestration 里程碑开发计划
 
-> 范围：Agent-Orchestration（自研工作流编排微服务）的 MVP 落地计划，里程碑级。配套设计见 `specs/2026-05-30-orchestrator-agentflow-workflow-template-design.md`。本计划只覆盖 Agent-Orchestration 自身；Agent-Management、Agent Core 由对应团队负责，本计划仅标注对接依赖。
+> 范围：Agent-Orchestration（自研工作流编排微服务）的 MVP 落地计划，里程碑级。配套设计见 `../spec/2026-05-30-orchestrator-agentflow-workflow-template-design.md`。本计划只覆盖 Agent-Orchestration 自身；Agent-Management、Agent Core 由对应团队负责，本计划仅标注对接依赖。
 
 ## 总览
 
@@ -83,13 +83,13 @@
 任务：
 - `POST /internal/agent-core/events`：eventId 去重、归属校验、按类别分流；
 - 控制类事件（attempt.started/heartbeat/result、runtime.*）推进状态机；
-- 展示类事件：经 `GET (WS/SSE) /runs/{id}/events` 实时推给直连浏览器（用户级鉴权：验 JWT + run 授权范围）；
+- 展示类事件：经 `GET (WS/SSE) /runs/{id}/events` 实时推给直连浏览器（鉴权 MVP 暂缓，无鉴权直连）；
 - outbox + worker：异步回流 Agent-Management（`POST /internal/agent-orchestration/events`），至少一次投递；
 - `GET /runs/{runId}` 查询接口。
 
-验收：mock Agent Core 推一串事件，状态正确推进；浏览器订阅 WS 能实时收到展示事件并按 sequence 有序；outbox 在 Agent-Management 不可用时重试不丢；JWT 越权访问被拒。
+验收：mock Agent Core 推一串事件，状态正确推进；浏览器订阅 WS 能实时收到展示事件并按 sequence 有序；outbox 在 Agent-Management 不可用时重试不丢。
 
-依赖：M3；Agent Core 事件 envelope；Agent-Management 接收端点；鉴权（JWT + run 授权范围）。
+依赖：M3；Agent Core 事件 envelope；Agent-Management 接收端点。（鉴权 MVP 暂缓，不作为依赖；上线前须补齐。）
 
 ## M5：suspend-resume 与对话续聊
 
@@ -127,12 +127,12 @@
 ```
 M0 ─► M1 ─► M2 ─► M3 ─► M4 ─► M5 ─► M6
        │                  │
-       └ DDL/实体           └ 鉴权、Agent-Management 对接可并行准备
+       └ DDL/实体           └ Agent-Management 对接可并行准备
 ```
 
 - M0 的"设计补全"是硬前置，建议优先完成 DDL / API schema / 状态机规则；
 - Agent Core、Agent-Management 的真实联调可在 M2 起用 mock，到 M4/M5 替换为真实服务；
-- 鉴权（JWT + run 授权范围）在 M4 才硬需要，可在 M1-M3 期间并行设计。
+- 鉴权 MVP 暂缓（产品决策），不在本计划范围；上线前须补齐（验 JWT + run 授权范围）。
 
 ## 风险
 

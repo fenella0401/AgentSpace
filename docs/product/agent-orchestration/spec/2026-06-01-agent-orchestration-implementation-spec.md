@@ -1,8 +1,10 @@
 # Agent-Orchestration 详细设计（实现规范）
 
-> 范围：Agent-Orchestration 微服务的实现级规范——数据库 DDL、对外 API 详细 schema、run/step/attempt 状态机完整规则。配套概要设计见 `2026-05-30-orchestrator-agentflow-workflow-template-design.md`，里程碑计划见 `../plans/2026-06-01-agent-orchestration-milestones-plan.md`。
+> 范围：Agent-Orchestration 微服务的实现级规范——数据库 DDL、对外 API 详细 schema、run/step/attempt 状态机完整规则。配套概要设计见 `2026-05-30-orchestrator-agentflow-workflow-template-design.md`，里程碑计划见 `../plan/2026-06-01-agent-orchestration-milestones-plan.md`。
 >
 > 数据库：openGauss（PostgreSQL 兼容）。语言：Java 21 + Spring Boot 3。
+>
+> **MVP 范围（鉴权暂缓）**：经产品决策，MVP 阶段**不实现用户级鉴权**。下文凡涉及 `Authorization: Bearer <JWT>`、`401 UNAUTHENTICATED`、`403 FORBIDDEN`、`team_id/user_id` 授权范围比对、「浏览器可直连」的描述均为**后续目标**，MVP 暂不落地；只读接口当前为无鉴权直连。`team_id/user_id`、`401/403` 等字段与错误码予以保留，供后续补齐时直接启用。安全风险（任何人凭 runId 可读他人 run）需单独跟踪。
 
 ## 1. 数据库 DDL
 
@@ -53,7 +55,7 @@ CREATE INDEX idx_run_team        ON workflow_run (team_id);
 
 - `idempotency_key` 唯一约束实现 `POST /runs` 幂等；
 - `agent_flow` 存整份快照，渲染、重试、reconcile 都从这里读，不回查 Agent-Management；
-- `team_id/user_id` 供用户级鉴权（验 JWT 后比对授权范围）。
+- `team_id/user_id` 规划供用户级鉴权（验 JWT 后比对授权范围）——**鉴权 MVP 暂缓，见顶部范围说明**；字段保留，暂不参与鉴权判定。
 
 ### 1.3 `workflow_step`
 
@@ -204,9 +206,9 @@ CREATE TABLE processed_event (
 
 通用约定：
 
-- 所有请求带 `Authorization: Bearer <JWT>`；写操作经 Agent-Management 转发（服务身份 + 原始用户 JWT），只读接口浏览器可直连；
+- 所有请求**规划**带 `Authorization: Bearer <JWT>`（**鉴权 MVP 暂缓，见顶部范围说明**）；写操作经 Agent-Management 转发，只读接口浏览器直连；
 - 错误响应统一体：`{ "errorCode": string, "message": string, "details"?: object }`；
-- 通用错误码：`401 UNAUTHENTICATED`(未认证)、`403 FORBIDDEN`(越权/不在 run 授权范围)、`404 NOT_FOUND`(run/step 不存在)、`409 CONFLICT`(状态不允许该操作)、`422 VALIDATION_ERROR`(参数/AgentFlow 校验失败)、`429 RESOURCE_EXHAUSTED`、`500 INTERNAL`。
+- 通用错误码：`401 UNAUTHENTICATED`(未认证)、`403 FORBIDDEN`(越权/不在 run 授权范围)、`404 NOT_FOUND`(run/step 不存在)、`409 CONFLICT`(状态不允许该操作)、`422 VALIDATION_ERROR`(参数/AgentFlow 校验失败)、`429 RESOURCE_EXHAUSTED`、`500 INTERNAL`。其中 `401/403` 随鉴权 MVP 暂缓而暂不返回，保留备用。
 
 ### 2.1 POST /runs — 启动 run
 
@@ -224,7 +226,7 @@ Body:   { "agentFlow": { /* 完整 AgentFlow，见概要设计 §6 */ } }
 行为与错误：
 - 按 `Idempotency-Key` 幂等；命中已存在 run 返回其当前 `{runId,status}`（200，不报错）；
 - 422：AgentFlow schema 非法（缺字段、DAG 有环/自环、edge 引用不存在 step、step id 重复）；
-- 403：JWT 用户不在 AgentFlow.tenant 授权范围；
+- 403：JWT 用户不在 AgentFlow.tenant 授权范围（**鉴权 MVP 暂缓，暂不返回**）；
 - 同一 Idempotency-Key 但 body 不一致 → 409。
 
 ### 2.2 POST /runs/{runId}/cancel — 取消 run
@@ -291,7 +293,7 @@ Body:   { "agentFlow": { /* 完整 AgentFlow，见概要设计 §6 */ } }
 - 起新 attempt（trigger=MANUAL_RETRY）；`resumeSession=true` 时复用 session_ref，否则从该 step 重新开始；
 - 409：step 非 FAILED；幂等同 continue；404/403 同上。
 
-### 2.6 GET /runs/{runId} — 查询（浏览器可直连）
+### 2.6 GET /runs/{runId} — 查询（浏览器可直连；鉴权 MVP 暂缓）
 
 成功 200：
 ```json
@@ -305,11 +307,11 @@ Body:   { "agentFlow": { /* 完整 AgentFlow，见概要设计 §6 */ } }
   ]
 }
 ```
-- 用户级鉴权：验 JWT + 比对 run 的 team_id/user_id 授权范围；403 越权；404 不存在。
+- 用户级鉴权（验 JWT + 比对 run 的 team_id/user_id 授权范围；403 越权；404 不存在）——**鉴权 MVP 暂缓，当前无鉴权直连，仅保留 404**。
 
-### 2.7 GET /runs/{runId}/events — 实时事件流（WS/SSE，浏览器可直连）
+### 2.7 GET /runs/{runId}/events — 实时事件流（WS/SSE，浏览器可直连；鉴权 MVP 暂缓）
 
-- 协议：WebSocket 或 SSE；连接时校验 JWT + run 授权范围；
+- 协议：WebSocket 或 SSE；连接时**规划**校验 JWT + run 授权范围（**鉴权 MVP 暂缓，当前无鉴权直连**）；
 - 推送展示类事件（thinking/message/tool_use/tool_result/stdout/stderr），按 `sequenceNo` 有序；
 - 支持 `?fromSequence=<n>` 断线重连续传；
 - 消息体：`{ eventId, eventType, category:"display", sequenceNo, payload }`。

@@ -1,6 +1,6 @@
 # Agent-Orchestration Task 级开发计划
 
-> 把里程碑（`2026-06-01-agent-orchestration-milestones-plan.md`）展开成可认领的 task。实现依据：详细设计 `../specs/2026-06-01-agent-orchestration-implementation-spec.md`（DDL / API / 状态机）+ 概要设计 `../specs/2026-05-30-orchestrator-agentflow-workflow-template-design.md`。
+> 把里程碑（`2026-06-01-agent-orchestration-milestones-plan.md`）展开成可认领的 task。实现依据：详细设计 `../spec/2026-06-01-agent-orchestration-implementation-spec.md`（DDL / API / 状态机）+ 概要设计 `../spec/2026-05-30-orchestrator-agentflow-workflow-template-design.md`。
 >
 > 预估单位：人日（熟悉 Spring Boot + 该设计的工程师）。Agent Core / Agent-Management 未就绪处用 mock。
 
@@ -49,8 +49,8 @@
 |---|---|---|---|---|
 | T4.1 | POST /internal/agent-core/events | eventId 去重、归属校验、按 category 分流 | T1.4 | 1.5 |
 | T4.2 | 控制类事件→状态机 | 驱动 attempt/step/run 推进（事务+CAS） | T4.1 T3.3 | 2 |
-| T4.4 | GET /runs/{id} 查询 | §2.6 响应；403/404（鉴权由本服务自行实现，不在本计划范围） | T2.1 | 1 |
-| T4.5 | GET /runs/{id}/events 实时流 | WS/SSE，展示类事件按 sequence 有序，fromSequence 续传（鉴权自行实现） | T2.1 | 3 |
+| T4.4 | GET /runs/{id} 查询 | §2.6 响应；404（鉴权 MVP 暂缓，无鉴权直连） | T2.1 | 1 |
+| T4.5 | GET /runs/{id}/events 实时流 | WS/SSE，展示类事件按 sequence 有序，fromSequence 续传（鉴权 MVP 暂缓，无鉴权直连） | T2.1 | 3 |
 | T4.6 | outbox + worker | 状态变更同事务写 outbox；worker 投递 Agent-Management，指数退避重试，至少一次 | T4.2 | 2.5 |
 
 ## M5 suspend-resume 与续聊
@@ -94,6 +94,6 @@
 并行建议：
 - T0.3/T0.4（契约+mock）尽早，解耦对其他团队的依赖；
 - 文档（详细设计）已就绪，开发可直接按 §1/§2/§3 落地；
-- 鉴权由本服务自行实现，不在本计划范围（只读接口接入时挂上即可）。
+- 鉴权 MVP 暂缓（产品决策），只读接口当前为无鉴权直连，上线前须补齐（`team_id/user_id`、401/403 已在 spec 保留备用）。
 
 风险延续概要设计第 11 章 7 项开放问题，已分别落到对应 task（如 #3 workspace 互斥→T5.3 校验 lease、#4 取消竞态→T6.3、#2 配置→T3.5）。
