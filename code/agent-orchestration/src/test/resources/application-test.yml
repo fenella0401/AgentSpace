@@ -15,6 +15,10 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    # 覆盖主配置的 PG flyway.url，测试用 H2（与 datasource 同库）
+    url: jdbc:h2:mem:agent_orch;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    user: sa
+    password: ""
 
 # 测试中关闭后台自动调度/投递的干扰：轮询间隔设极大，由测试显式驱动。
 orchestration:

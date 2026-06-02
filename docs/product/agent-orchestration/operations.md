@@ -16,7 +16,10 @@
 ## 上线前必须在真实环境完成
 
 ### 1. 数据库（openGauss）
-- [ ] 在真实 openGauss 上执行 Flyway 迁移（当前迁移脚本以 TEXT 存 JSON，兼容 openGauss 与 H2）
+- 应用运行时数据源用 openGauss 官方驱动（`org.opengauss:opengauss-jdbc`，`jdbc:opengauss://`）。
+  Flyway 9.x 不识别该前缀，迁移单独用 PostgreSQL 驱动经 wire 兼容连同一库执行
+  （`spring.flyway.url` 用 `jdbc:postgresql://` 指向同库；环境变量 `DB_FLYWAY_URL` 可覆盖）。
+- [ ] 在真实 openGauss 上验证 opengauss-jdbc 连接 + Flyway（PG 驱动）迁移均成功（本机无实例，仅编译/配置验证过）
 - [ ] 评估 jsonb 原生类型 + GIN 索引需求（如需按 payload 检索），以 PG 专属迁移升级 `agent_flow` / `payload` 列
 - [ ] 验证 `SELECT ... FOR UPDATE SKIP LOCKED` 在 openGauss 兼容模式下的行锁语义（当前调度以 CAS 保证正确性，SKIP LOCKED 为性能优化）
 - [ ] 多副本部署下的调度并发测试（CAS 不重复调度）
