@@ -30,7 +30,7 @@ public class StepDependency {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
-    protected StepDependency() {
+    public StepDependency() {
     }
 
     public String getId() {

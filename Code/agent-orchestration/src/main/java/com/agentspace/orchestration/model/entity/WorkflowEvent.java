@@ -49,7 +49,7 @@ public class WorkflowEvent {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
-    protected WorkflowEvent() {
+    public WorkflowEvent() {
     }
 
     public String getId() {

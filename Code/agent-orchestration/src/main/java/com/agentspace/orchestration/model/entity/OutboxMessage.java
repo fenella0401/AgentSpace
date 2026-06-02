@@ -40,7 +40,7 @@ public class OutboxMessage {
     @Column(name = "sent_at")
     private OffsetDateTime sentAt;
 
-    protected OutboxMessage() {
+    public OutboxMessage() {
     }
 
     public String getId() {
