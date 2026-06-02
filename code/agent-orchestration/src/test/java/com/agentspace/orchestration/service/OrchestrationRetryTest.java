@@ -86,9 +86,9 @@ class OrchestrationRetryTest {
         await().atMost(Duration.ofSeconds(5)).until(() -> !runService.findAttempts(stepId).isEmpty());
 
         String attemptId = latestAttemptId(stepId);
-        resultHandler.onAttemptSucceeded(attemptId, "done", "r", "s");
+        resultHandler.onAttemptSucceeded(attemptId, "done", "r", "s", null);
         // 重复成功事件：attempt 已终态，应被忽略
-        resultHandler.onAttemptSucceeded(attemptId, "done", "r", "s");
+        resultHandler.onAttemptSucceeded(attemptId, "done", "r", "s", null);
 
         long completedA = runService.findSteps(runId).stream()
                 .filter(s -> s.getStepKey().equals("a"))

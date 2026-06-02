@@ -74,7 +74,8 @@ public class AttemptResultHandler {
      * =true → step SUSPENDED（FE6 深化 confirm/continue）。
      */
     @Transactional
-    public void onAttemptSucceeded(String attemptId, String summary, String result, String sessionRef) {
+    public void onAttemptSucceeded(String attemptId, String summary, String result,
+                                   String sessionRef, String artifactRefsJson) {
         StepAttempt attempt = attemptRepo.findById(attemptId).orElseThrow();
         if (StateTransitions.isTerminal(attempt.getStatus())) {
             log.warn("attempt {} 已终态 {}，忽略重复成功事件", attemptId, attempt.getStatus());
@@ -85,6 +86,7 @@ public class AttemptResultHandler {
         WorkflowStep step = stepRepo.findById(attempt.getStepId()).orElseThrow();
         step.setOutputSummary(summary);
         step.setOutputResult(result);
+        step.setOutputArtifactRefs(artifactRefsJson);
         step.setSessionRef(sessionRef);
 
         if (step.isRequiresConfirmation()) {
@@ -136,6 +138,30 @@ public class AttemptResultHandler {
             log.info("step {} 重试耗尽 → FAILED", step.getStepKey());
         }
         recalcRun(attempt.getRunId());
+    }
+
+    /**
+     * attempt 被取消（收到 runtime.cancelled）：attempt → CANCELLED，step → CANCELLED（不重试），run 重算。
+     * 见详细设计 §8.4（runtime.cancelled 视为 cancelled）。
+     */
+    @Transactional
+    public void onAttemptCancelled(String attemptId) {
+        StepAttempt attempt = attemptRepo.findById(attemptId).orElseThrow();
+        if (StateTransitions.isTerminal(attempt.getStatus())) {
+            log.warn("attempt {} 已终态 {}，忽略 cancelled 事件", attemptId, attempt.getStatus());
+            return;
+        }
+        markAttemptTerminal(attempt, AttemptStatus.CANCELLED, null, null);
+
+        WorkflowStep step = stepRepo.findById(attempt.getStepId()).orElseThrow();
+        if (step.getStatus() != StepStatus.COMPLETED && step.getStatus() != StepStatus.CANCELLED
+                && step.getStatus() != StepStatus.FAILED) {
+            step.setStatus(StepStatus.CANCELLED);
+            step.setFinishedAt(OffsetDateTime.now());
+            touch(step);
+        }
+        recalcRun(attempt.getRunId());
+        log.info("attempt {} 收到 runtime.cancelled → CANCELLED", attemptId);
     }
 
     private void markAttemptTerminal(StepAttempt attempt, AttemptStatus status,

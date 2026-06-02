@@ -77,6 +77,8 @@ public class ApiExceptionHandler {
         String code = switch (ex.getStatusCode().value()) {
             case 404 -> "NOT_FOUND";
             case 409 -> "CONFLICT";
+            case 422 -> "VALIDATION_ERROR";
+            case 429 -> "RESOURCE_EXHAUSTED";
             default -> "ERROR";
         };
         return ResponseEntity.status(ex.getStatusCode())

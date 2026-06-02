@@ -55,7 +55,7 @@ public class ReconciliationService {
                     continue;
                 }
                 if (resp.status() == AttemptStatus.SUCCEEDED) {
-                    resultHandler.onAttemptSucceeded(attempt.getId(), "reconciled", null, null);
+                    resultHandler.onAttemptSucceeded(attempt.getId(), "reconciled", null, null, null);
                     aligned++;
                 } else if (resp.status() == AttemptStatus.FAILED) {
                     resultHandler.onAttemptFailed(attempt.getId(),

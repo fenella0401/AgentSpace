@@ -102,7 +102,7 @@ public class SuspendResumeService {
      */
     @Transactional
     public StepAttempt retry(String runId, String stepId, boolean resumeSession, String actionKey) {
-        WorkflowRun run = requireRun(runId);
+        WorkflowRun run = requireRunNotCancelling(runId);
         WorkflowStep step = requireStep(runId, stepId);
         if (step.getStatus() != StepStatus.FAILED) {
             throw new StepActionConflictException("step 非 FAILED，不能 retry: " + step.getStatus());

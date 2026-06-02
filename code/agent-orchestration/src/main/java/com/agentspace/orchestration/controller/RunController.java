@@ -43,10 +43,18 @@ public class RunController {
 
     /**
      * POST /runs — 启动 run。按 Idempotency-Key 幂等。见详细设计 §2.1。
+     *
+     * <p>{@code Idempotency-Key} header 可选；若提供，须与 body 的 {@code agentFlow.run.idempotencyKey}
+     * 一致（否则 422），以 body 内键为执行幂等键。
      */
     @PostMapping
     public RunResponse createRun(@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
                                  @Valid @RequestBody CreateRunRequest request) {
+        String bodyKey = request.agentFlow().run() == null ? null : request.agentFlow().run().idempotencyKey();
+        if (idempotencyKey != null && !idempotencyKey.isBlank() && !idempotencyKey.equals(bodyKey)) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Idempotency-Key header 与 body.run.idempotencyKey 不一致");
+        }
         WorkflowRun run = runService.startRun(request.agentFlow());
         return new RunResponse(run.getId(), run.getStatus());
     }

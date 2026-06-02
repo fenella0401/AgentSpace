@@ -86,6 +86,9 @@ public class StepAttempt {
     @Column(name = "runtime_terminal", length = 20)
     private String runtimeTerminal;         // COMPLETED / FAILED / CANCELLED
 
+    @Column(name = "pending_artifact_refs")
+    private String pendingArtifactRefs;     // StepOutput.artifactRefs(JSON)，乱序合并后写入 step
+
     @Version
     @Column(nullable = false)
     private int version;
@@ -259,6 +262,14 @@ public class StepAttempt {
 
     public void setRuntimeTerminal(String runtimeTerminal) {
         this.runtimeTerminal = runtimeTerminal;
+    }
+
+    public String getPendingArtifactRefs() {
+        return pendingArtifactRefs;
+    }
+
+    public void setPendingArtifactRefs(String pendingArtifactRefs) {
+        this.pendingArtifactRefs = pendingArtifactRefs;
     }
 
     public int getVersion() {

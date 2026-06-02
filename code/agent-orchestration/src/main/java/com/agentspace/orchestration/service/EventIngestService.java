@@ -119,6 +119,8 @@ public class EventIngestService {
                 attempt.setPendingResultSummary(str(event.payload(), "summary"));
                 attempt.setPendingResultDetail(str(event.payload(), "result"));
                 attempt.setPendingSessionRef(str(event.payload(), "sessionRef"));
+                attempt.setPendingArtifactRefs(writeJson(
+                        event.payload() == null ? null : event.payload().get("artifactRefs")));
                 attempt.setUpdatedAt(OffsetDateTime.now());
                 attemptRepo.save(attempt);
                 tryFinalize(attempt);
@@ -171,8 +173,9 @@ public class EventIngestService {
             return;
         }
         if ("CANCELLED".equals(runtime)) {
-            // 取消由 run cancel 级联负责（FE7）；这里仅在收到 runtime.cancelled 时标记
-            log.info("attempt {} 收到 runtime.cancelled", attempt.getId());
+            // Agent Core 自发上报 runtime.cancelled → attempt/step CANCELLED；
+            // 经 orchestration 主动 cancel 的路径由 RunCancellationService 负责（attempt 已先置 CANCELLED）。
+            resultHandler.onAttemptCancelled(attempt.getId());
             return;
         }
         // result 失败：无需等 runtime
@@ -185,7 +188,8 @@ public class EventIngestService {
             resultHandler.onAttemptSucceeded(attempt.getId(),
                     attempt.getPendingResultSummary(),
                     attempt.getPendingResultDetail(),
-                    attempt.getPendingSessionRef());
+                    attempt.getPendingSessionRef(),
+                    attempt.getPendingArtifactRefs());
         }
     }
 
@@ -243,6 +247,17 @@ public class EventIngestService {
         }
         try {
             return objectMapper.writeValueAsString(payload);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String writeJson(Object value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(value);
         } catch (Exception e) {
             return null;
         }

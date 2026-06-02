@@ -37,17 +37,20 @@ public class StepLauncher {
     private final StepAttemptRepository attemptRepo;
     private final AgentFlowCodec codec;
     private final PromptRenderer promptRenderer;
+    private final RunStateRecalculator runRecalc;
     private final ObjectProvider<AgentCoreClient> agentCoreClientProvider;
 
     public StepLauncher(WorkflowStepRepository stepRepo,
                         StepAttemptRepository attemptRepo,
                         AgentFlowCodec codec,
                         PromptRenderer promptRenderer,
+                        RunStateRecalculator runRecalc,
                         ObjectProvider<AgentCoreClient> agentCoreClientProvider) {
         this.stepRepo = stepRepo;
         this.attemptRepo = attemptRepo;
         this.codec = codec;
         this.promptRenderer = promptRenderer;
+        this.runRecalc = runRecalc;
         // 用 ObjectProvider 懒取，打破 mock→EventSink→...→AgentCoreClient 的构造期循环依赖
         this.agentCoreClientProvider = agentCoreClientProvider;
     }
@@ -65,7 +68,14 @@ public class StepLauncher {
                 .filter(s -> s.id().equals(step.getStepKey())).findFirst()
                 .orElseThrow(() -> new IllegalStateException("AgentFlow 缺少 step: " + step.getStepKey()));
 
-        String renderedPrompt = renderPrompt(flow, flowStep, run);
+        String renderedPrompt;
+        try {
+            renderedPrompt = renderPrompt(flow, flowStep, run);
+        } catch (PromptRenderException e) {
+            // 渲染失败不回滚、不无限重试：建 FAILED attempt + step FAILED(PROMPT_RENDER_ERROR) + run 重算。见 §7.1。
+            return failOnRender(run, step, trigger, resumeSessionRef, feedback, e);
+        }
+
         step.setRenderedPrompt(renderedPrompt);
         step.setStatus(StepStatus.RUNNING);
         step.setStartedAt(OffsetDateTime.now());
@@ -74,6 +84,30 @@ public class StepLauncher {
 
         StepAttempt attempt = createAttempt(run, step, trigger, resumeSessionRef, feedback);
         callStartAttempt(run, step, flowStep, attempt, renderedPrompt, flow);
+        return attempt;
+    }
+
+    /** prompt 渲染失败：attempt 直接 FAILED、step FAILED(PROMPT_RENDER_ERROR)，不调 Agent Core。 */
+    private StepAttempt failOnRender(WorkflowRun run, WorkflowStep step, AttemptTrigger trigger,
+                                     String resumeSessionRef, String feedback, PromptRenderException e) {
+        log.warn("step {} prompt 渲染失败 → PROMPT_RENDER_ERROR: {}", step.getStepKey(), e.getMessage());
+        StepAttempt attempt = createAttempt(run, step, trigger, resumeSessionRef, feedback);
+        OffsetDateTime now = OffsetDateTime.now();
+        attempt.setStatus(AttemptStatus.FAILED);
+        attempt.setFailureReason("PROMPT_RENDER_ERROR");
+        attempt.setErrorMessage(e.getMessage());
+        attempt.setFinishedAt(now);
+        attempt.setUpdatedAt(now);
+        attemptRepo.save(attempt);
+
+        step.setStatus(StepStatus.FAILED);
+        step.setErrorCode("PROMPT_RENDER_ERROR");
+        step.setErrorMessage(e.getMessage());
+        step.setFinishedAt(now);
+        step.setUpdatedAt(now);
+        stepRepo.save(step);
+
+        runRecalc.recalculate(run);
         return attempt;
     }
 

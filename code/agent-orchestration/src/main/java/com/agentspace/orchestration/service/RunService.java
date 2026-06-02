@@ -1,5 +1,6 @@
 package com.agentspace.orchestration.service;
 
+import com.agentspace.orchestration.model.AttemptStatus;
 import com.agentspace.orchestration.model.RunStatus;
 import com.agentspace.orchestration.model.StepStatus;
 import com.agentspace.orchestration.model.AttemptTrigger;
@@ -62,27 +63,49 @@ public class RunService {
     }
 
     /**
-     * 启动一次 run。按 idempotencyKey 幂等：命中已存在 run 直接返回其当前状态。
+     * 启动一次 run。按 idempotencyKey 幂等：命中已存在 run 直接返回；同 key 但 AgentFlow 不一致 → 409；
+     * 并发同 key 触发唯一索引冲突时重查返回已存在 run（至少一次创建语义）。见详细设计 §2.1、§9.2。
      */
     @Transactional
     public WorkflowRun startRun(AgentFlow flow) {
         String idempotencyKey = flow.run().idempotencyKey();
+        String requestHash = codec.toJson(flow);
+
         Optional<WorkflowRun> existing = runRepo.findByIdempotencyKey(idempotencyKey);
         if (existing.isPresent()) {
-            WorkflowRun run = existing.get();
-            log.info("run 幂等命中 idempotencyKey={} runId={} status={}",
-                    idempotencyKey, run.getId(), run.getStatus());
-            return run;
+            return reuseOrConflict(existing.get(), idempotencyKey, requestHash);
         }
 
         validator.validate(flow);
 
-        WorkflowRun run = persistRun(flow);
+        WorkflowRun run;
+        try {
+            run = persistRun(flow);
+            runRepo.flush(); // 提前触发唯一约束，捕获并发冲突
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // 并发同 key：另一请求已创建，重查返回已存在 run
+            WorkflowRun other = runRepo.findByIdempotencyKey(idempotencyKey)
+                    .orElseThrow(() -> e);
+            log.info("run 幂等并发冲突，返回已存在 runId={}", other.getId());
+            return reuseOrConflict(other, idempotencyKey, requestHash);
+        }
+
         Map<String, WorkflowStep> stepsByKey = persistSteps(run, flow);
         persistDependencies(run, flow);
         markInitialReady(run, flow, stepsByKey);
         launchFirstReady(run, flow);
         return run;
+    }
+
+    /** 幂等命中：AgentFlow 一致则复用，不一致则 409。 */
+    private WorkflowRun reuseOrConflict(WorkflowRun existing, String idempotencyKey, String requestHash) {
+        if (existing.getAgentFlowJson() != null && !existing.getAgentFlowJson().equals(requestHash)) {
+            throw new IdempotencyConflictException(
+                    "Idempotency-Key 已存在但请求体不一致: " + idempotencyKey);
+        }
+        log.info("run 幂等命中 idempotencyKey={} runId={} status={}",
+                idempotencyKey, existing.getId(), existing.getStatus());
+        return existing;
     }
 
     private WorkflowRun persistRun(AgentFlow flow) {
@@ -162,7 +185,11 @@ public class RunService {
             log.warn("run {} 无初始 ready step（DAG 异常）", run.getId());
             return;
         }
-        stepLauncher.launch(run, first.get(), flow, AttemptTrigger.INITIAL, null, null);
+        StepAttempt attempt = stepLauncher.launch(run, first.get(), flow, AttemptTrigger.INITIAL, null, null);
+        // 渲染失败等导致首 step 直接 FAILED：run 已被 recalc 推进，勿覆盖回 RUNNING
+        if (attempt.getStatus() == AttemptStatus.FAILED) {
+            return;
+        }
         run.setStatus(RunStatus.RUNNING);
         run.setStartedAt(OffsetDateTime.now());
         run.setUpdatedAt(OffsetDateTime.now());
