@@ -16,3 +16,7 @@ __pycache__/
 *.log
 .codex-log/
 tmp/
+
+# IDE / 工具
+.idea/
+.claude/
