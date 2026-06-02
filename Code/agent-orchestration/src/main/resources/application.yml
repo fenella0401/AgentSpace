@@ -1,0 +1,16 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: agent-orchestration
+
+# 仅暴露健康检查；脚手架阶段不接数据源，待 FE1 引入 openGauss + 迁移后再扩展。
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
