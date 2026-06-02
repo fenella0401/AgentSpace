@@ -1,0 +1,9 @@
+# mock profile：启用 mock Agent Core，供 FE2+ 联调。
+# 启动：mvn spring-boot:run -Dspring-boot.run.profiles=mock
+mock:
+  agent-core:
+    behavior: SUCCEED        # SUCCEED / FAIL / TIMEOUT
+    start-delay-ms: 0
+    emit-display-events: true
+    event-count: 3
+    failure-reason: EXECUTOR_FAILED
