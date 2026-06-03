@@ -36,7 +36,6 @@ public class EventIngestService {
     private final WorkflowEventRepository eventRepo;
     private final AttemptResultHandler resultHandler;
     private final RunEventBroadcaster broadcaster;
-    private final OutboxService outboxService;
     private final ObjectMapper objectMapper;
 
     public EventIngestService(ProcessedEventRepository processedRepo,
@@ -44,14 +43,12 @@ public class EventIngestService {
                               WorkflowEventRepository eventRepo,
                               AttemptResultHandler resultHandler,
                               RunEventBroadcaster broadcaster,
-                              OutboxService outboxService,
                               ObjectMapper objectMapper) {
         this.processedRepo = processedRepo;
         this.attemptRepo = attemptRepo;
         this.eventRepo = eventRepo;
         this.resultHandler = resultHandler;
         this.broadcaster = broadcaster;
-        this.outboxService = outboxService;
         this.objectMapper = objectMapper;
     }
 
@@ -74,13 +71,11 @@ public class EventIngestService {
             case CONTROL -> handleControl(event, attempt);
             case RUNTIME -> handleRuntime(event, attempt);
             case DISPLAY -> {
+                // 展示类事件已 persistEvent 落库（workflow_event，单存储事实源），并实时推浏览器；
+                // 浏览器经 /events/poll 或 SSE 消费，历史回放亦读本地表，不再回流 Agent-Management。
                 broadcaster.publish(event.runId(), new DisplayEventMessage(
                         event.eventId(), event.eventType(), "display",
                         event.sequence(), writePayload(event.payload())));
-                // 回流 Agent-Management 供历史回放（受背压降采样）
-                outboxService.enqueueDisplay(event.runId(), event.stepId(), event.attemptId(),
-                        Map.of("eventId", event.eventId(), "eventType", event.eventType(),
-                                "sequenceNo", event.sequence()));
             }
         }
 

@@ -30,11 +30,6 @@ orchestration:
   start-timeout: 2m
   scheduler-poll-interval: 2s
   scheduler-poll-interval-ms: 2000
-  outbox:
-    max-retries: 8
-    backoff-base-seconds: 2
-    max-pending: 10000
-    poll-interval-ms: 1000
   watchdog:
     poll-interval-ms: 5000
   # 示例：per-executorType 覆盖

@@ -22,7 +22,7 @@
 | FE2 | 状态机与调度引擎 | run/step/attempt 三级状态机 + 串行 DAG 调度 + 自动重试 | §3.1–3.4, §8.5, §8.6 | M3 / T3.x |
 | FE3 | 事件接入与状态推进 | 入站事件去重 + 归属校验 + 控制类事件驱动状态机 + 乱序合并 | §2.8, §8.3, §8.4 | M4 / T4.1, T4.2 |
 | FE4 | 实时流与状态查询 | `GET /runs/{id}` + `GET /runs/{id}/events`(WS/SSE) + sequence 有序 + 断线续传 | §2.6, §2.7, §9.6, §10.2 | M4 / T4.4, T4.5 |
-| FE5 | 状态回流与背压 | outbox + worker + 至少一次投递 + 指数退避 + 展示事件降采样 | §1.7, §2.9, §9.8, §8.2, §11#7 | M4 T4.6, M6 T6.5 |
+| FE5 | ~~状态回流与背压~~ **已废弃（单存储）** | ~~outbox + worker + 至少一次投递 + 指数退避 + 展示事件降采样~~。2026-06 改为单存储：状态/事件只存 orchestration，Agent-Management 经 `GET /runs/{id}` + `/events/poll` 主动查询，相关代码与表已移除 | ~~§1.7, §2.9~~ | ~~M4 T4.6, M6 T6.5~~ |
 | FE6 | Suspend-Resume 与续聊 | confirm / continue / retry + sessionRef 续聊 + action 级幂等 + 取消竞态 | §2.3–2.5, §8.8, §10.3, §11#4,#5 | M5 / T5.x |
 | FE7 | 可靠性与上线 | watchdog + 重启恢复 reconcile + 取消级联 + 可观测性 + 压测/灰度 | §3.5, §11#1,#6 | M6 / T6.1–T6.4, T6.6, T6.7 |
 

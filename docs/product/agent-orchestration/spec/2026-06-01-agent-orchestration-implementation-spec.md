@@ -5,6 +5,8 @@
 > 数据库：openGauss（PostgreSQL 兼容）。语言：Java 21 + Spring Boot 3。
 >
 > **MVP 范围（鉴权暂缓）**：经产品决策，MVP 阶段**不实现用户级鉴权**。下文凡涉及 `Authorization: Bearer <JWT>`、`401 UNAUTHENTICATED`、`403 FORBIDDEN`、`team_id/user_id` 授权范围比对、「浏览器可直连」的描述均为**后续目标**，MVP 暂不落地；只读接口当前为无鉴权直连。`team_id/user_id`、`401/403` 等字段与错误码予以保留，供后续补齐时直接启用。安全风险（任何人凭 runId 可读他人 run）需单独跟踪。
+>
+> **架构修订（单存储，2026-06）**：改为**单存储**——状态与事件只存本服务，**不回流 Agent-Management**。下文 §1.7 `outbox_message` 表、§2.9 `POST /internal/agent-orchestration/events` 出站接口、以及所有「写 outbox / 同事务回流 / 至少一次投递 / 背压降采样」描述**均已废弃**，相关代码（`outbox_message` 表、`OutboxService`/`OutboxWorker`/`AgentManagementClient`）已移除。取而代之：Agent-Management 经 `GET /runs/{id}` 查询 run 终态、经 `GET /runs/{id}/events/poll` 拉取历史展示事件；新增轮询端点见 §9.6。
 
 ## 1. 数据库 DDL
 

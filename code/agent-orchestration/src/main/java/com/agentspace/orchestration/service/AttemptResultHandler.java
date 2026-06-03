@@ -42,7 +42,6 @@ public class AttemptResultHandler {
     private final DownstreamTrigger downstreamTrigger;
     private final AgentFlowCodec codec;
     private final OrchestrationProperties props;
-    private final OutboxService outboxService;
     private final OrchestrationMetrics metrics;
 
     public AttemptResultHandler(WorkflowRunRepository runRepo,
@@ -54,7 +53,6 @@ public class AttemptResultHandler {
                                 DownstreamTrigger downstreamTrigger,
                                 AgentFlowCodec codec,
                                 OrchestrationProperties props,
-                                OutboxService outboxService,
                                 OrchestrationMetrics metrics) {
         this.runRepo = runRepo;
         this.stepRepo = stepRepo;
@@ -65,7 +63,6 @@ public class AttemptResultHandler {
         this.downstreamTrigger = downstreamTrigger;
         this.codec = codec;
         this.props = props;
-        this.outboxService = outboxService;
         this.metrics = metrics;
     }
 
@@ -92,9 +89,6 @@ public class AttemptResultHandler {
         if (step.isRequiresConfirmation()) {
             step.setStatus(StepStatus.SUSPENDED);
             touch(step);
-            outboxService.enqueueStateChange(attempt.getRunId(), step.getId(), attemptId,
-                    "step.suspended",
-                    java.util.Map.of("stepId", step.getId(), "stepKey", step.getStepKey()));
             log.info("step {} 成功且需确认 → SUSPENDED", step.getStepKey());
         } else {
             step.setStatus(StepStatus.COMPLETED);
@@ -175,19 +169,8 @@ public class AttemptResultHandler {
     }
 
     private void recalcRun(String runId) {
-        runRepo.findById(runId).ifPresent(run -> {
-            com.agentspace.orchestration.model.RunStatus before = run.getStatus();
-            com.agentspace.orchestration.model.RunStatus after = runRecalc.recalculate(run);
-            // run 状态变更回流 Agent-Management（控制类，始终入 outbox）
-            if (after != before
-                    && (after == com.agentspace.orchestration.model.RunStatus.COMPLETED
-                        || after == com.agentspace.orchestration.model.RunStatus.FAILED
-                        || after == com.agentspace.orchestration.model.RunStatus.SUSPENDED)) {
-                outboxService.enqueueStateChange(runId, null, null,
-                        "run." + after.name().toLowerCase(),
-                        java.util.Map.of("runId", runId, "status", after.name()));
-            }
-        });
+        // run 状态由 step 聚合驱动；Agent-Management 通过 GET /runs/{id} 主动查询终态（单存储，不回流）。
+        runRepo.findById(runId).ifPresent(runRecalc::recalculate);
     }
 
     private void touch(WorkflowStep step) {

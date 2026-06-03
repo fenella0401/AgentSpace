@@ -33,22 +33,19 @@ public class SuspendResumeService {
     private final StepLauncher stepLauncher;
     private final DownstreamTrigger downstreamTrigger;
     private final RunStateRecalculator runRecalc;
-    private final OutboxService outboxService;
 
     public SuspendResumeService(WorkflowRunRepository runRepo,
                                 WorkflowStepRepository stepRepo,
                                 AgentFlowCodec codec,
                                 StepLauncher stepLauncher,
                                 DownstreamTrigger downstreamTrigger,
-                                RunStateRecalculator runRecalc,
-                                OutboxService outboxService) {
+                                RunStateRecalculator runRecalc) {
         this.runRepo = runRepo;
         this.stepRepo = stepRepo;
         this.codec = codec;
         this.stepLauncher = stepLauncher;
         this.downstreamTrigger = downstreamTrigger;
         this.runRecalc = runRecalc;
-        this.outboxService = outboxService;
     }
 
     /**
@@ -146,15 +143,7 @@ public class SuspendResumeService {
     }
 
     private void recalcRun(WorkflowRun run) {
-        runRepo.findById(run.getId()).ifPresent(r -> {
-            RunStatus before = r.getStatus();
-            RunStatus after = runRecalc.recalculate(r);
-            if (after != before && (after == RunStatus.COMPLETED || after == RunStatus.FAILED
-                    || after == RunStatus.SUSPENDED || after == RunStatus.RUNNING)) {
-                outboxService.enqueueStateChange(r.getId(), null, null,
-                        "run." + after.name().toLowerCase(),
-                        java.util.Map.of("runId", r.getId(), "status", after.name()));
-            }
-        });
+        // run 状态由 step 聚合驱动；Agent-Management 通过 GET /runs/{id} 主动查询（单存储，不回流）。
+        runRepo.findById(run.getId()).ifPresent(runRecalc::recalculate);
     }
 }

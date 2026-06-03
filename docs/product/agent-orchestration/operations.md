@@ -8,8 +8,8 @@
 - FE1 执行编排基座：数据模型 / 初始化 SQL（`db/schema.sql`）/ 幂等 / `POST /runs` / DAG ready / prompt 渲染 / StartAttempt
 - FE2 状态机与调度：run/step/attempt 三级状态机（CAS）/ 串行调度 / 自动重试
 - FE3 事件接入：`POST /internal/agent-core/events` / eventId 去重 / 归属校验 / 乱序合并
-- FE4 实时流：`GET /runs/{id}` / `GET /runs/{id}/events`（SSE）/ fromSequence 续传
-- FE5 回流背压：outbox 同事务写 / worker 指数退避投递 / 背压降采样
+- FE4 实时流：`GET /runs/{id}` / `GET /runs/{id}/events`（SSE）/ `GET /runs/{id}/events/poll`（轮询）/ fromSequence 续传
+- FE5 ~~回流背压~~：**已移除**——改为单存储，状态/事件只存 orchestration，Agent-Management 经 `GET /runs/{id}` 主动查询
 - FE6 suspend-resume：confirm / continue / retry / cancel / 竞态拒绝
 - FE7 可靠性：watchdog（超时/心跳丢失）/ cancel 级联 / reconcile / Prometheus 指标
 - Claude Code 接入：SDK `stream-json` 消息（system/assistant/user/result）→ 内部统一事件适配
@@ -26,13 +26,14 @@
 - [ ] 验证 `SELECT ... FOR UPDATE SKIP LOCKED` 在 openGauss 兼容模式下的行锁语义（当前调度以 CAS 保证正确性，SKIP LOCKED 为性能优化）
 - [ ] 多副本部署下的调度并发测试（CAS 不重复调度）
 
-### 2. 真实 Agent Core / Agent-Management 联调（替换 mock）
+### 2. 真实 Agent Core 联调（替换 mock）
 - [ ] 冻结并对齐 StartAttempt / CancelAttempt / QueryAttempt 接口与事件 envelope（T0.3）
 - [ ] 用真实 Agent Core 替换 `MockAgentCoreClient`（非 mock profile 下实现 HTTP `AgentCoreClient`）
 - [x] 入站消息解析：Claude Code SDK `stream-json` → 内部事件已实现（`client.claudecode`，默认按 SDK 格式解析）
 - [ ] 把 SDK 进程 stdout（或 Agent Core 转发的事件流）接到 `ClaudeCodeStreamParser.parseAndDispatch`，
       每个 attempt 提供 `AttemptContext`（runId/stepId/attemptId）；OPENCODE / CODEX 执行器另补适配器
-- [ ] 配置 `agent-management.base-url`，验证 `HttpAgentManagementClient` 回流投递与去重
+- [ ] Agent-Management 集成（单存储，无回流）：确认 AM 经 `GET /runs/{id}` 轮询 run 终态以更新业务侧工作流状态，
+      历史展示事件经 `GET /runs/{id}/events/poll` 拉取
 - [ ] 端到端跑通：issue → run → attempt → 事件流 → 审查 → 结果
 
 ### 3. 鉴权（MVP 暂缓，上线前必须补齐）
@@ -41,14 +42,14 @@
 - [ ] 当前只读接口（`GET /runs/{id}`、`/events`）为无鉴权直连，存在越权读取风险，须在公网暴露前关闭
 
 ### 4. 压测与容量（设计目标：集群 ≥ 100 并发 running attempts）
-- [ ] 压测调度延迟、事件吞吐、outbox 投递速率
-- [ ] 校准 `orchestration.outbox.max-pending` 背压阈值与展示事件降采样策略
+- [ ] 压测调度延迟、事件吞吐、`/runs/{id}` 与 `/events/poll` 查询 QPS
 - [ ] 校准 watchdog 阈值（`step-timeout` / `heartbeat-timeout`，支持 per-executorType 覆盖）
+- [ ] 评估 `workflow_event` 增长与保留策略（展示类量大，单存储下需 TTL / 归档）
 
 ### 5. 灰度上线
 - [ ] 功能开关后发布，单项目灰度验证
-- [ ] 指标面板（Prometheus + Grafana）：`orchestration.attempts.running`、`orchestration.outbox.pending`、`orchestration.attempt.failures`
-- [ ] 告警：队列积压、调度器/runtime 无心跳、连接器错误率、outbox 投递失败、成本异常
+- [ ] 指标面板（Prometheus + Grafana）：`orchestration.attempts.running`、`orchestration.attempt.failures`
+- [ ] 告警：调度器/runtime 无心跳、连接器错误率、成本异常
 
 ## Agent Core API 中断的恢复机制
 
@@ -63,7 +64,7 @@
   - 已在跑但本地 STARTING（响应丢失）→ 本地对齐成 RUNNING，补 `runtimeAttemptRef`；
   - 终态 → 推进成功 / 失败。
 - **本服务重启**：`ReconciliationRunner` 启动时对所有 in-flight attempt 跑一次 reconcile。
-- **执行中事件丢失**：watchdog 心跳 / 硬超时兜底；回流 AM 由 outbox 至少一次。
+- **执行中事件丢失**：watchdog 心跳 / 硬超时兜底；事件全量落 `workflow_event`，Agent-Management 按需查询。
 
 > 依赖：真实 Agent Core 必须保证 **StartAttempt 幂等**（同 attemptId 重复调返回同一 RuntimeAttempt）
 > 与 **QueryAttempt 可按 attemptId 查 found/状态**。见下方真实 client 要求。
@@ -74,7 +75,7 @@
   连接 / 读超时、有限重试，并依赖 StartAttempt 幂等键（用 attemptId）。StartAttempt 调用时机可进一步优化为
   外层事务 `afterCommit` 后再调，避免本地回滚产生 Agent Core 孤儿 attempt（当前已通过"中断保持 STARTING +
   reconcile 对齐"覆盖主要风险）。mock 以小延迟（`mock.agent-core.start-delay-ms`）规避事务可见性竞态。
-- **outbox display 事件回流**：当前展示事件回流受背压降采样；如需保证历史回放完整性，
-  可考虑展示事件独立队列或分级保留策略。
+- **`workflow_event` 保留策略**：单存储下展示类事件量大且只存本服务，需 TTL / 归档 / 分级保留，
+  避免无限增长（控制类全量留存供审计，展示类可裁剪）。
 - **run 级全局事件序号**：`workflow_event.sequence_no` 为 attempt 内序号，跨 attempt 的 SSE
   断线续传以 eventId 去重兜底；如需严格全局有序，引入 run 级单调序号。

@@ -3,6 +3,8 @@
 > 文档定位：在 Coplat 云端化总体架构下，细化 Agent-Orchestration 与 Agent-Management、Workflow 模板、AgentFlow、Agent Core 之间的职责边界和数据模型。本文重点覆盖微服务边界、模板存储、AgentFlow 快照、模板到 AgentFlow 的转换，以及当前已确认的 MVP 约束；调度器状态机、运行库表结构后续另文展开。
 >
 > **MVP 范围（鉴权暂缓）**：经产品决策，MVP 阶段 Agent-Orchestration **不实现用户级鉴权**。下文所有关于「验 JWT、run 授权范围、浏览器凭 JWT 直连、401/403」的描述均为**后续目标**，MVP 暂不落地——只读接口（`GET /runs/{id}`、`GET /runs/{id}/events`）暂为无鉴权直连。这是临时简化、上线前必须补齐：当前任何人凭 runId 即可读取他人 run 的状态与实时事件流，安全风险需单独跟踪。
+>
+> **架构修订（单存储，2026-06）**：经决策改为**单存储**——run / step / attempt 状态与执行事件**只持久化在 Agent-Orchestration**（openGauss `workflow_event` 等表），**不再回流 Agent-Management**。下文所有关于「outbox 回流、异步回流 Agent-Management 落库、`POST /internal/agent-orchestration/events`、session/segment/event 为历史回放事实源、背压降采样」的描述**均已废弃**。取而代之：Agent-Management 经 `GET /runs/{id}` 主动查询 run 终态（查到结束即结束其业务侧工作流），历史展示事件经 `GET /runs/{id}/events/poll` 拉取；orchestration 自身即事实源。`outbox_message` 表、`OutboxService`/`OutboxWorker`、`AgentManagementClient` 已从代码移除。
 
 ## 0. 概要
 

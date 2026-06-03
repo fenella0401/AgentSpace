@@ -18,14 +18,9 @@ spring:
       mode: always
       schema-locations: classpath:db/schema.sql
 
-# 测试中关闭后台自动调度/投递的干扰：轮询间隔设极大，由测试显式驱动。
+# 测试中关闭后台自动调度的干扰：轮询间隔设极大，由测试显式驱动。
 orchestration:
   max-retries: 2
   scheduler-poll-interval-ms: 3600000
-  outbox:
-    max-retries: 3
-    backoff-base-seconds: 1
-    max-pending: 5
-    poll-interval-ms: 3600000
   watchdog:
     poll-interval-ms: 3600000

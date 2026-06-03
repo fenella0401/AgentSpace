@@ -125,19 +125,6 @@ CREATE TABLE IF NOT EXISTS workflow_event (
 CREATE INDEX IF NOT EXISTS idx_event_run_seq ON workflow_event (run_id, sequence_no);
 CREATE INDEX IF NOT EXISTS idx_event_attempt ON workflow_event (attempt_id);
 
-CREATE TABLE IF NOT EXISTS outbox_message (
-    id            VARCHAR(64) PRIMARY KEY,
-    run_id        VARCHAR(64) NOT NULL,
-    payload       TEXT        NOT NULL,
-    status        VARCHAR(16) NOT NULL DEFAULT 'PENDING',
-    retry_count   INTEGER     NOT NULL DEFAULT 0,
-    next_retry_at TIMESTAMP WITH TIME ZONE,
-    created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    sent_at       TIMESTAMP WITH TIME ZONE
-);
-
-CREATE INDEX IF NOT EXISTS idx_outbox_dispatch ON outbox_message (status, next_retry_at);
-
 CREATE TABLE IF NOT EXISTS processed_event (
     event_id     VARCHAR(64) PRIMARY KEY,
     processed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
