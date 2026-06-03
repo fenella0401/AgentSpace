@@ -1,4 +1,4 @@
-package com.agentspace.orchestration.service;
+package com.agentspace.orchestration.service.exception;
 
 import java.util.List;
 

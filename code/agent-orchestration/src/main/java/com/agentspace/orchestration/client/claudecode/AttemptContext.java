@@ -1,5 +1,6 @@
 package com.agentspace.orchestration.client.claudecode;
 
+
 /**
  * 一个 attempt 的归属上下文。Claude Code SDK 的 {@code stream-json} 输出本身只带 session_id，
  * 不含编排侧的 runId / stepId / attemptId，故由调用方在解析每个 attempt 的事件流时提供。

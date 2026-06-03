@@ -24,6 +24,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import com.agentspace.orchestration.service.run.RunService;
 
 /**
  * M2 启动链路集成测试（test + mock profile）。mock 异步推事件，用 awaitility 等待收敛。

@@ -32,6 +32,12 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
+import com.agentspace.orchestration.service.run.RunCancellationService;
+import com.agentspace.orchestration.service.run.SuspendResumeService;
+import com.agentspace.orchestration.service.run.RunService;
+import com.agentspace.orchestration.service.event.EventIngestService;
+import com.agentspace.orchestration.service.exception.StepActionConflictException;
+import com.agentspace.orchestration.service.exception.IdempotencyConflictException;
 
 /**
  * 覆盖 spec 审计后修复的真问题：幂等 body 冲突、retry 竞态、PROMPT_RENDER_ERROR、

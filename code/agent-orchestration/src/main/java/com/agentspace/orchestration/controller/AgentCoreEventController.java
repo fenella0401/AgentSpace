@@ -1,7 +1,7 @@
 package com.agentspace.orchestration.controller;
 
 import com.agentspace.orchestration.model.event.AgentExecutionEvent;
-import com.agentspace.orchestration.service.EventIngestService;
+import com.agentspace.orchestration.service.event.EventIngestService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;

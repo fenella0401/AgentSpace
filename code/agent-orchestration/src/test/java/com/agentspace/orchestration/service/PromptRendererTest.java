@@ -6,6 +6,8 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import com.agentspace.orchestration.service.support.PromptRenderer;
+import com.agentspace.orchestration.service.exception.PromptRenderException;
 
 class PromptRendererTest {
 

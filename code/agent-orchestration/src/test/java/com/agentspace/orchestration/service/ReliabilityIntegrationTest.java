@@ -21,6 +21,9 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.agentspace.orchestration.service.run.RunCancellationService;
+import com.agentspace.orchestration.service.run.ReconciliationService;
+import com.agentspace.orchestration.service.support.AgentFlowCodec;
 
 /**
  * FE7 可靠性：watchdog 心跳丢失/超时判失败、cancel 级联、reconcile 对齐。见详细设计 §3.5、§2.2。

@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.agentspace.orchestration.service.run.ReconciliationService;
+import com.agentspace.orchestration.service.run.RunService;
 
 /**
  * Agent Core API 中断（升级/网络）后的恢复：StartAttempt 中断不回滚、不重复起 attempt；

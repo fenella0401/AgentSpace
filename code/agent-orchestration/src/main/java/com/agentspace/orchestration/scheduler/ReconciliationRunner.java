@@ -1,6 +1,6 @@
 package com.agentspace.orchestration.scheduler;
 
-import com.agentspace.orchestration.service.ReconciliationService;
+import com.agentspace.orchestration.service.run.ReconciliationService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;

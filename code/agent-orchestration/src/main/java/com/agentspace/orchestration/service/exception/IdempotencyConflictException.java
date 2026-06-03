@@ -1,4 +1,4 @@
-package com.agentspace.orchestration.service;
+package com.agentspace.orchestration.service.exception;
 
 /**
  * 同一 Idempotency-Key 但请求体不一致。对应 POST /runs 的 409 CONFLICT。见详细设计 §2.1。

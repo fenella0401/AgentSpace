@@ -1,4 +1,4 @@
-package com.agentspace.orchestration.service;
+package com.agentspace.orchestration.service.exception;
 
 /**
  * 入站事件归属校验失败（run/step/attempt 不匹配）。对应 POST /internal/agent-core/events 的 422。

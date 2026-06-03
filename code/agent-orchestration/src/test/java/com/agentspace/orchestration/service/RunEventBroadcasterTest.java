@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.agentspace.orchestration.service.event.RunEventBroadcaster;
 
 /**
  * FE4 实时分发器：订阅/发布/移除、fromSequence 回放。见详细设计 §2.7。

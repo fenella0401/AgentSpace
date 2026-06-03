@@ -1,10 +1,11 @@
-package com.agentspace.orchestration.service;
+package com.agentspace.orchestration.service.support;
 
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.agentspace.orchestration.service.exception.PromptRenderException;
 
 /**
  * Prompt 渲染器：只做简单 {@code {{path}}} 变量替换，不支持条件 / 循环 / 函数 / 脚本。见概要设计 §7.1。

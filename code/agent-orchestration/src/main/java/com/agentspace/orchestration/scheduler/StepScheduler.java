@@ -3,7 +3,7 @@ package com.agentspace.orchestration.scheduler;
 import com.agentspace.orchestration.model.StepStatus;
 import com.agentspace.orchestration.model.entity.WorkflowRun;
 import com.agentspace.orchestration.model.entity.WorkflowStep;
-import com.agentspace.orchestration.service.SchedulingService;
+import com.agentspace.orchestration.service.run.SchedulingService;
 import com.agentspace.orchestration.repository.WorkflowStepRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

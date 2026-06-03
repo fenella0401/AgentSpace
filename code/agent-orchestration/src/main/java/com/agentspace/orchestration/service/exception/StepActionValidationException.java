@@ -1,4 +1,4 @@
-package com.agentspace.orchestration.service;
+package com.agentspace.orchestration.service.exception;
 
 /**
  * step 操作参数校验失败（如 continue 的 feedback 为空）。映射 422。见详细设计 §2.4。

@@ -1,4 +1,4 @@
-package com.agentspace.orchestration.service;
+package com.agentspace.orchestration.service.run;
 
 import com.agentspace.orchestration.client.AgentCoreClient;
 import com.agentspace.orchestration.client.dto.QueryAttemptResponse;

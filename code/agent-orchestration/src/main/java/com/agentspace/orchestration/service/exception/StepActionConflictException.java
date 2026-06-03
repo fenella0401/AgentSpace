@@ -1,4 +1,4 @@
-package com.agentspace.orchestration.service;
+package com.agentspace.orchestration.service.exception;
 
 /**
  * suspended/failed step 操作的状态前置不满足（非 SUSPENDED/FAILED、run 已 CANCELLING 等）。映射 409。

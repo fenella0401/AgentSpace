@@ -8,7 +8,7 @@ import com.agentspace.orchestration.model.flow.PromptSpec;
 import com.agentspace.orchestration.model.flow.RunRef;
 import com.agentspace.orchestration.model.flow.TaskRef;
 import com.agentspace.orchestration.model.flow.TenantRef;
-import com.agentspace.orchestration.service.RunService;
+import com.agentspace.orchestration.service.run.RunService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;

@@ -24,6 +24,8 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import com.agentspace.orchestration.service.run.AttemptResultHandler;
+import com.agentspace.orchestration.service.run.RunService;
 
 /**
  * 失败重试与幂等：直接驱动 {@link AttemptResultHandler}（不依赖 mock 行为），确定性验证

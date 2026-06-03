@@ -1,4 +1,4 @@
-package com.agentspace.orchestration.service;
+package com.agentspace.orchestration.service.event;
 
 import com.agentspace.orchestration.controller.dto.DisplayEventMessage;
 import com.agentspace.orchestration.model.AttemptStatus;
@@ -21,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
+import com.agentspace.orchestration.service.run.AttemptResultHandler;
+import com.agentspace.orchestration.service.exception.EventAttributionException;
 
 /**
  * Agent Core 入站事件处理（FE3）：eventId 去重 → 归属校验 → 按类别分流 → 控制/runtime 推进状态机

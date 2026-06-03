@@ -1,4 +1,4 @@
-package com.agentspace.orchestration.service;
+package com.agentspace.orchestration.service.support;
 
 import com.agentspace.orchestration.model.flow.AgentFlow;
 import com.agentspace.orchestration.model.flow.AgentFlowEdge;
@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import com.agentspace.orchestration.service.exception.AgentFlowValidationException;
 
 /**
  * AgentFlow 的结构校验：在 Bean Validation（字段非空）之外，补充 DAG 层面的语义校验。

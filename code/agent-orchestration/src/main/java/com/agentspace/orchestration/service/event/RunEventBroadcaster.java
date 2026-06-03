@@ -1,4 +1,4 @@
-package com.agentspace.orchestration.service;
+package com.agentspace.orchestration.service.event;
 
 import com.agentspace.orchestration.controller.dto.DisplayEventMessage;
 import com.agentspace.orchestration.model.entity.WorkflowEvent;

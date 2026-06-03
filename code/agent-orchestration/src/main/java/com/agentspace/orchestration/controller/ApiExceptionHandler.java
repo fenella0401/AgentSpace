@@ -1,13 +1,13 @@
 package com.agentspace.orchestration.controller;
 
 import com.agentspace.orchestration.controller.dto.ErrorResponse;
-import com.agentspace.orchestration.service.AgentFlowValidationException;
-import com.agentspace.orchestration.service.EventAttributionException;
-import com.agentspace.orchestration.service.IdempotencyConflictException;
-import com.agentspace.orchestration.service.PromptRenderException;
-import com.agentspace.orchestration.service.StepActionConflictException;
-import com.agentspace.orchestration.service.StepActionNotFoundException;
-import com.agentspace.orchestration.service.StepActionValidationException;
+import com.agentspace.orchestration.service.exception.AgentFlowValidationException;
+import com.agentspace.orchestration.service.exception.EventAttributionException;
+import com.agentspace.orchestration.service.exception.IdempotencyConflictException;
+import com.agentspace.orchestration.service.exception.PromptRenderException;
+import com.agentspace.orchestration.service.exception.StepActionConflictException;
+import com.agentspace.orchestration.service.exception.StepActionNotFoundException;
+import com.agentspace.orchestration.service.exception.StepActionValidationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;

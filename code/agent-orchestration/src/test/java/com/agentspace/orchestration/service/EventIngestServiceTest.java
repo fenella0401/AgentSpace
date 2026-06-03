@@ -29,6 +29,9 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
+import com.agentspace.orchestration.service.run.RunService;
+import com.agentspace.orchestration.service.event.EventIngestService;
+import com.agentspace.orchestration.service.exception.EventAttributionException;
 
 /**
  * FE3 事件接入：eventId 去重、归属校验、attempt.result 与 runtime.* 乱序合并判定终态。

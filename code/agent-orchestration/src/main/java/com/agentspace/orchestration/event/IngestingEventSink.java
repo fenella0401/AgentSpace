@@ -1,7 +1,7 @@
 package com.agentspace.orchestration.event;
 
 import com.agentspace.orchestration.model.event.AgentExecutionEvent;
-import com.agentspace.orchestration.service.EventIngestService;
+import com.agentspace.orchestration.service.event.EventIngestService;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 

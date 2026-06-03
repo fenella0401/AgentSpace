@@ -13,7 +13,7 @@ import com.agentspace.orchestration.repository.StepAttemptRepository;
 import com.agentspace.orchestration.repository.WorkflowEventRepository;
 import com.agentspace.orchestration.repository.WorkflowRunRepository;
 import com.agentspace.orchestration.repository.WorkflowStepRepository;
-import com.agentspace.orchestration.service.AgentFlowCodec;
+import com.agentspace.orchestration.service.support.AgentFlowCodec;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

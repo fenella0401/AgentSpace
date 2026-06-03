@@ -1,4 +1,4 @@
-package com.agentspace.orchestration.service;
+package com.agentspace.orchestration.service.exception;
 
 /**
  * Prompt 渲染失败（引用不存在的变量 / 未完成上游 step 输出）。对应 attempt failure_reason=PROMPT_RENDER_ERROR。

@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.agentspace.orchestration.service.run.RunService;
 
 /**
  * 展示类事件轮询（SSE 之外的轮询方案，见详细设计 §2.7）：游标推进、limit 截断 hasMore、空批游标不退、终态标记。

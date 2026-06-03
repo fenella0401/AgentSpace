@@ -1,4 +1,4 @@
-package com.agentspace.orchestration.service;
+package com.agentspace.orchestration.service.exception;
 
 /**
  * 非法状态转换。接口层映射为 409；内部事件触发时记为告警并丢弃。见详细设计 §3。

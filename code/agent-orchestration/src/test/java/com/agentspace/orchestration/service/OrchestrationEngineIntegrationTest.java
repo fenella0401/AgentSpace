@@ -23,6 +23,8 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import com.agentspace.orchestration.service.run.SchedulingService;
+import com.agentspace.orchestration.service.run.RunService;
 
 /**
  * FE2+FE3 端到端集成测试（test + mock profile）。mock 异步推事件经

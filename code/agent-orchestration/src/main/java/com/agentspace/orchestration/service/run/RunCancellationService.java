@@ -1,4 +1,4 @@
-package com.agentspace.orchestration.service;
+package com.agentspace.orchestration.service.run;
 
 import com.agentspace.orchestration.client.AgentCoreClient;
 import com.agentspace.orchestration.client.dto.CancelAttemptRequest;
@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import com.agentspace.orchestration.service.exception.StepActionNotFoundException;
 
 /**
  * run 取消与级联（FE6 标记 + FE7 级联删 in-flight attempt）。见详细设计 §2.2、§9.3、§3.4。

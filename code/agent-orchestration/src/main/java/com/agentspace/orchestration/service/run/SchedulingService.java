@@ -1,4 +1,4 @@
-package com.agentspace.orchestration.service;
+package com.agentspace.orchestration.service.run;
 
 import com.agentspace.orchestration.model.StepStatus;
 import com.agentspace.orchestration.model.AttemptTrigger;
@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import com.agentspace.orchestration.service.support.AgentFlowCodec;
 
 /**
  * 调度决策：对一个 READY step 判断是否可启动（MVP 串行单飞：同 run 任意时刻最多一个 RUNNING），
