@@ -57,7 +57,7 @@ controller  ── HTTP 端点(对外只读 /runs/**、内部回调 /internal/**
 service     ── 业务逻辑:状态机推进 / 调度决策 / 事件处理 / 续聊 / outbox / 可观测性
     │             ├─ statemachine: 合法转换表
     │             └─ 校验器 / 渲染器 / DAG 工具
-    ├── scheduler ── 定时触发:调度轮询 / watchdog / outbox worker / 重启 reconcile
+    ├── scheduler ── 定时触发:调度轮询 / watchdog / outbox worker / 重启 reconcile（详见 §2.5）
     ├── client    ── 出入站:Agent Core 调用 + Agent-Management 回流(各含 mock 实现)
     │                 └─ event: EventSink 投递抽象(解耦事件源与状态机)
     ├── repository── Spring Data JPA(openGauss 事实状态源)
@@ -98,6 +98,37 @@ Agent Core ──────事件───────────────
 翻译为内部统一事件——assistant 的 text/thinking/tool_use → display 类，user 的 tool_result → display 类，
 `result` 行 → `attempt.result` + 合成的 `runtime.completed/failed`（直连作执行器+运行时时）。
 eventId 由 attemptId+消息块确定性派生（SHA-256 截断），断线重读天然去重；thinking 取摘要、tool 输出限长（§8.4 约束）。
+
+### 2.5 调度与自驱动（scheduler 层）
+
+本服务是 **DB polling 架构**（非事件总线 / Temporal）：没有外部调度器，工作流靠 `scheduler` 包里的
+定时任务**主动轮询数据库状态**来推进。该层只做「触发 / 扫描」，调度决策与状态推进逻辑都在 `service` 层
+（便于测试时直接驱动逻辑、绕开定时器）。四个组件各管一类必须主动发生、不能靠外部请求驱动的事：
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ StepScheduler        每 2s   扫 READY step → SchedulingService 启动            │
+│  (推进工作流)                step 完成→下游变 READY→下轮启动；这是流程前进的根本  │
+│                              多副本：FOR UPDATE SKIP LOCKED + CAS(@Version) 不重复│
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Watchdog             每 5s   扫卡住的执行，兜底判定：                            │
+│  (兜底超时/卡死)             ├ RUNNING 心跳丢失(>heartbeat-timeout) → 判失败    │
+│                              ├ RUNNING 硬超时(>step-timeout)        → 判失败    │
+│                              └ STARTING 卡死(>start-timeout)        → reconcile 对齐│
+├──────────────────────────────────────────────────────────────────────────────┤
+│ OutboxWorker         每 1s   扫 outbox PENDING 且到期 → 投递 Agent-Management   │
+│  (可靠回流)                  成功→SENT；失败→指数退避重试（至少一次投递）        │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ ReconciliationRunner 启动时  对所有 in-flight attempt 跑一次 reconcile          │
+│  (重启恢复，非定时)          查 Agent Core 实况对齐状态；@Profile("!test")       │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **StepScheduler** 让流程往前走，**Watchdog** 兜底卡死的，**OutboxWorker** 保证回流送达，
+  **ReconciliationRunner** 管重启恢复——四者合起来构成这个无外部调度器的编排引擎的「自驱动」能力；
+- 状态写入全程 **CAS（`@Version`）+ 事务**：watchdog 判失败复用 `AttemptResultHandler.onAttemptFailed`，
+  对已终态 attempt 幂等忽略，与正常 `attempt.result` 事件并发安全；
+- 轮询间隔均可配（见 §8）；测试 profile 下间隔设为极大值，由测试显式调用 service 驱动，不靠定时器。
 
 ---
 
