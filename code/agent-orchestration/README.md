@@ -79,7 +79,8 @@ Agent-Management ──POST /runs(AgentFlow)──▶ RunService
 ### 2.4 事件流（执行中）
 
 ```
-Agent Core ──事件──▶ POST /internal/agent-core/events ──▶ EventIngestService
+Claude Code SDK ──stream-json──▶ ClaudeCodeStreamParser ─┐ (按 SDK 格式解析为内部事件)
+Agent Core ──────事件───────────────────────────────────┴─▶ POST /internal/agent-core/events ──▶ EventIngestService
    去重(processed_event) → 归属校验 → 按 category 分流:
      ├ control(attempt.started/heartbeat/result) ─┐
      ├ runtime(runtime.completed/failed/...)      ├─▶ 乱序合并判终态 ─▶ AttemptResultHandler
@@ -92,6 +93,11 @@ Agent Core ──事件──▶ POST /internal/agent-core/events ──▶ Even
 
 `attempt.result`(executor 语义结果) 与 `runtime.completed/failed`(运行环境物理终态)**可乱序到达**，
 先到者暂存于 `step_attempt` 的 `pending_*` / `runtime_terminal` 字段，两信号齐了再定终态（见 §8.4 设计）。
+
+**Claude Code 接入**：`client.claudecode` 把 SDK `stream-json` 输出（system/assistant/user/result）
+翻译为内部统一事件——assistant 的 text/thinking/tool_use → display 类，user 的 tool_result → display 类，
+`result` 行 → `attempt.result` + 合成的 `runtime.completed/failed`（直连作执行器+运行时时）。
+eventId 由 attemptId+消息块确定性派生（SHA-256 截断），断线重读天然去重；thinking 取摘要、tool 输出限长（§8.4 约束）。
 
 ---
 
@@ -166,10 +172,11 @@ Agent Core ──事件──▶ POST /internal/agent-core/events ──▶ Even
 | `service/statemachine` | 合法状态转换表 | `StateTransitions` |
 | `scheduler` | 定时触发（薄壳） | `StepScheduler`、`Watchdog`、`OutboxWorker`、`ReconciliationRunner` |
 | `client` | 出入站客户端 | `AgentCoreClient`(+mock/unconfigured)、`AgentManagementClient`(+mock/http) |
+| `client/claudecode` | Claude Code SDK 接入 | `ClaudeCodeEventAdapter`、`ClaudeCodeStreamParser`、`AttemptContext`（`stream-json` → 内部事件） |
 | `event` | 事件投递抽象 | `EventSink`、`IngestingEventSink`、`LoggingEventSink` |
-| `model` | 数据结构 | `entity/*`(JPA)、`flow/*`(AgentFlow)、`event/*`(事件协议)、状态枚举 |
+| `model` | 数据结构 | `entity/*`(JPA)、`flow/*`(AgentFlow)、`event/*`(事件协议)、`claudecode/*`(SDK 消息)、状态枚举 |
 | `repository` | Spring Data JPA | 7 个 Repository |
-| `config` | 配置 | `OrchestrationProperties`、`OrchestrationConfig`、`MockAgentCoreConfig` |
+| `config` | 配置 | `OrchestrationProperties`、`ClaudeCodeAdapterProperties`、`OrchestrationConfig`、`MockAgentCoreConfig` |
 
 ---
 

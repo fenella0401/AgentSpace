@@ -12,6 +12,8 @@
 - FE5 回流背压：outbox 同事务写 / worker 指数退避投递 / 背压降采样
 - FE6 suspend-resume：confirm / continue / retry / cancel / 竞态拒绝
 - FE7 可靠性：watchdog（超时/心跳丢失）/ cancel 级联 / reconcile / Prometheus 指标
+- Claude Code 接入：SDK `stream-json` 消息（system/assistant/user/result）→ 内部统一事件适配
+  （`client.claudecode`），脱敏/限长、runtime 终态合成、确定性 eventId 去重；含端到端联调测试
 
 ## 上线前必须在真实环境完成
 
@@ -27,6 +29,9 @@
 ### 2. 真实 Agent Core / Agent-Management 联调（替换 mock）
 - [ ] 冻结并对齐 StartAttempt / CancelAttempt / QueryAttempt 接口与事件 envelope（T0.3）
 - [ ] 用真实 Agent Core 替换 `MockAgentCoreClient`（非 mock profile 下实现 HTTP `AgentCoreClient`）
+- [x] 入站消息解析：Claude Code SDK `stream-json` → 内部事件已实现（`client.claudecode`，默认按 SDK 格式解析）
+- [ ] 把 SDK 进程 stdout（或 Agent Core 转发的事件流）接到 `ClaudeCodeStreamParser.parseAndDispatch`，
+      每个 attempt 提供 `AttemptContext`（runId/stepId/attemptId）；OPENCODE / CODEX 执行器另补适配器
 - [ ] 配置 `agent-management.base-url`，验证 `HttpAgentManagementClient` 回流投递与去重
 - [ ] 端到端跑通：issue → run → attempt → 事件流 → 审查 → 结果
 

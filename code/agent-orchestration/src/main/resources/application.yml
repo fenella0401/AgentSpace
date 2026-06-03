@@ -51,6 +51,13 @@ orchestration:
   #     max-retries: 1
   #     step-timeout: 20m
 
+# Claude Code SDK stream-json 消息适配：脱敏/限长与 runtime 终态合成。见概要设计 §8.4。
+claude-code:
+  adapter:
+    thinking-summary-max-chars: 2000      # agent.thinking 只传摘要，超长截断
+    tool-output-max-chars: 8000           # tool_result 单条上限，超大改写 artifact
+    synthesize-runtime-terminal: true     # 由 result 行合成 runtime.completed/failed（直连作执行器+运行时）
+
 # 暴露健康检查与 Prometheus 指标。
 management:
   endpoints:
