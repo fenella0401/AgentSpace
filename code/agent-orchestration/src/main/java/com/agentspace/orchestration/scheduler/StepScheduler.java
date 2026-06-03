@@ -15,9 +15,10 @@ import java.util.List;
 /**
  * 调度器：定时轮询 READY step 并启动（MVP 串行单飞）。见概要设计 §2.3、§7.3。
  *
- * <p>多副本：openGauss 用 {@code FOR UPDATE SKIP LOCKED} 减少竞争，CAS（@Version）保证
- * 正确性——两个副本同时抢同一 step 时只有一个 CAS 成功，另一个回滚重试。本类只做触发，
- * 启动与并发仲裁逻辑在 {@link SchedulingService}。
+ * <p>多副本：并发抢占同一 READY step 由 CAS（@Version）仲裁——只有一个副本的状态 CAS
+ * 成功，另一个 UPDATE 影响 0 行、回滚重试。{@code FOR UPDATE SKIP LOCKED}（悲观跳锁、
+ * 从源头减少无效竞争）为上线前性能优化，尚未落地。本类只做触发，启动与并发仲裁逻辑在
+ * {@link SchedulingService}。
  */
 @Component
 public class StepScheduler {
