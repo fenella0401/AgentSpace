@@ -5,7 +5,7 @@
 
 ## 已实现并验证（单机 + H2 + mock）
 
-- FE1 执行编排基座：数据模型 / Flyway 迁移 / 幂等 / `POST /runs` / DAG ready / prompt 渲染 / StartAttempt
+- FE1 执行编排基座：数据模型 / 初始化 SQL（`db/schema.sql`）/ 幂等 / `POST /runs` / DAG ready / prompt 渲染 / StartAttempt
 - FE2 状态机与调度：run/step/attempt 三级状态机（CAS）/ 串行调度 / 自动重试
 - FE3 事件接入：`POST /internal/agent-core/events` / eventId 去重 / 归属校验 / 乱序合并
 - FE4 实时流：`GET /runs/{id}` / `GET /runs/{id}/events`（SSE）/ fromSequence 续传
@@ -19,10 +19,10 @@
 
 ### 1. 数据库（openGauss）
 - 应用运行时数据源用 openGauss 官方驱动（`org.opengauss:opengauss-jdbc`，`jdbc:opengauss://`）。
-  Flyway 9.x 不识别该前缀，迁移单独用 PostgreSQL 驱动经 wire 兼容连同一库执行
-  （`spring.flyway.url` 用 `jdbc:postgresql://` 指向同库；环境变量 `DB_FLYWAY_URL` 可覆盖）。
-- [ ] 在真实 openGauss 上验证 opengauss-jdbc 连接 + Flyway（PG 驱动）迁移均成功（本机无实例，仅编译/配置验证过）
-- [ ] 评估 jsonb 原生类型 + GIN 索引需求（如需按 payload 检索），以 PG 专属迁移升级 `agent_flow` / `payload` 列
+- 表结构手动初始化：上线前在目标库执行 `code/agent-orchestration/src/main/resources/db/schema.sql`
+  （`gsql -f schema.sql`；openGauss/PG 通用，含 `IF NOT EXISTS` 可重复执行）。应用启动只做 JPA `validate`，不自动建表。
+- [ ] 在真实 openGauss 上执行 `schema.sql` 建表，并启动应用确认 JPA `validate` 通过（本机无实例，仅 H2 PG 兼容模式 + 编译/配置验证过）
+- [ ] 评估 jsonb 原生类型 + GIN 索引需求（如需按 payload 检索），以 PG 专属脚本升级 `agent_flow` / `payload` 列
 - [ ] 验证 `SELECT ... FOR UPDATE SKIP LOCKED` 在 openGauss 兼容模式下的行锁语义（当前调度以 CAS 保证正确性，SKIP LOCKED 为性能优化）
 - [ ] 多副本部署下的调度并发测试（CAS 不重复调度）
 

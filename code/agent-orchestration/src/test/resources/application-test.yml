@@ -1,4 +1,5 @@
-# 测试 profile：H2 PostgreSQL 兼容模式，跑 Flyway 迁移验证 DDL 可执行 + Repository 测试。
+# 测试 profile：H2 PostgreSQL 兼容模式。用 Spring SQL init 跑 db/schema.sql 建表，
+# 顺带验证这份手动初始化 SQL 在 PG 兼容语义下可执行、且与 JPA 实体对齐。
 spring:
   datasource:
     url: jdbc:h2:mem:agent_orch;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
@@ -12,13 +13,10 @@ spring:
     open-in-view: false
     database-platform: org.hibernate.dialect.H2Dialect
 
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    # 覆盖主配置的 PG flyway.url，测试用 H2（与 datasource 同库）
-    url: jdbc:h2:mem:agent_orch;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
-    user: sa
-    password: ""
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema.sql
 
 # 测试中关闭后台自动调度/投递的干扰：轮询间隔设极大，由测试显式驱动。
 orchestration:

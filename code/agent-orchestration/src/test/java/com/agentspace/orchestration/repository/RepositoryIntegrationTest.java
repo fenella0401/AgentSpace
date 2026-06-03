@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * 验证幂等唯一约束与基础 CRUD（H2 + Flyway 迁移）。
+ * 验证幂等唯一约束与基础 CRUD（H2 + schema.sql 初始化）。
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)

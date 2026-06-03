@@ -45,23 +45,11 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
-        </dependency>
-
-        <!-- openGauss 官方 JDBC 驱动：应用运行时数据源 -->
+        <!-- openGauss 官方 JDBC 驱动：应用运行时数据源。表结构由 db/schema.sql 手动初始化，JPA 仅 validate。 -->
         <dependency>
             <groupId>org.opengauss</groupId>
             <artifactId>opengauss-jdbc</artifactId>
             <version>5.1.0</version>
-            <scope>runtime</scope>
-        </dependency>
-        <!-- PostgreSQL 驱动：仅供 Flyway 9.x 迁移使用（Flyway 不识别 jdbc:opengauss 前缀，
-             经 PG wire 兼容连同一 openGauss 库执行迁移）。应用运行时数据源用 openGauss 原生驱动。 -->
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
         <dependency>
