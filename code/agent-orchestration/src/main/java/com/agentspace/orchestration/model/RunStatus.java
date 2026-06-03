@@ -10,5 +10,10 @@ public enum RunStatus {
     COMPLETED,
     FAILED,
     CANCELLING,
-    CANCELLED
+    CANCELLED;
+
+    /** 终态：不再产生新事件，前端可停止轮询。 */
+    public boolean isTerminal() {
+        return this == COMPLETED || this == FAILED || this == CANCELLED;
+    }
 }

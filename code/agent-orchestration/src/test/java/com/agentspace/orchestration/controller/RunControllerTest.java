@@ -80,4 +80,39 @@ class RunControllerTest {
         mockMvc.perform(get("/runs/{id}/events", "nope").accept(MediaType.TEXT_EVENT_STREAM))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void pollEventsForUnknownRunReturns404() throws Exception {
+        mockMvc.perform(get("/runs/{id}/events/poll", "nope"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void pollEventsReturnsIncrementalBatchWithCursor() throws Exception {
+        // 默认 SUCCEED 的 mock 会异步跑完单步并产生展示类事件（emitDisplayEvents）
+        String runId = runService.startRun(flow("ctrl-poll")).getId();
+
+        // 轮询直到出现展示事件（mock 异步推送）
+        org.awaitility.Awaitility.await().atMost(java.time.Duration.ofSeconds(5))
+                .until(() -> !runService.pollDisplayEvents(
+                        runService.findRun(runId).orElseThrow(), 0L, 100).events().isEmpty());
+
+        mockMvc.perform(get("/runs/{id}/events/poll", runId).param("fromSequence", "0"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.events").isArray())
+                .andExpect(jsonPath("$.nextSequence").isNumber())
+                .andExpect(jsonPath("$.runStatus").exists())
+                .andExpect(jsonPath("$.runTerminal").isBoolean());
+    }
+
+    @Test
+    void pollEventsFromLatestSequenceReturnsEmpty() throws Exception {
+        String runId = runService.startRun(flow("ctrl-poll-empty")).getId();
+        // 用一个极大的 fromSequence，不应有更新事件
+        mockMvc.perform(get("/runs/{id}/events/poll", runId).param("fromSequence", "999999"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.events").isEmpty())
+                .andExpect(jsonPath("$.nextSequence").value(999999))
+                .andExpect(jsonPath("$.hasMore").value(false));
+    }
 }

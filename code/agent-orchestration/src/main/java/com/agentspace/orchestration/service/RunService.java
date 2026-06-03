@@ -1,11 +1,14 @@
 package com.agentspace.orchestration.service;
 
+import com.agentspace.orchestration.controller.dto.DisplayEventMessage;
+import com.agentspace.orchestration.controller.dto.EventPollResponse;
 import com.agentspace.orchestration.model.AttemptStatus;
 import com.agentspace.orchestration.model.RunStatus;
 import com.agentspace.orchestration.model.StepStatus;
 import com.agentspace.orchestration.model.AttemptTrigger;
 import com.agentspace.orchestration.model.entity.StepAttempt;
 import com.agentspace.orchestration.model.entity.StepDependency;
+import com.agentspace.orchestration.model.entity.WorkflowEvent;
 import com.agentspace.orchestration.model.entity.WorkflowRun;
 import com.agentspace.orchestration.model.entity.WorkflowStep;
 import com.agentspace.orchestration.model.flow.AgentFlow;
@@ -13,10 +16,12 @@ import com.agentspace.orchestration.model.flow.AgentFlowEdge;
 import com.agentspace.orchestration.model.flow.AgentFlowStep;
 import com.agentspace.orchestration.repository.StepAttemptRepository;
 import com.agentspace.orchestration.repository.StepDependencyRepository;
+import com.agentspace.orchestration.repository.WorkflowEventRepository;
 import com.agentspace.orchestration.repository.WorkflowRunRepository;
 import com.agentspace.orchestration.repository.WorkflowStepRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,14 +47,20 @@ public class RunService {
     private final WorkflowStepRepository stepRepo;
     private final StepDependencyRepository depRepo;
     private final StepAttemptRepository attemptRepo;
+    private final WorkflowEventRepository eventRepo;
     private final AgentFlowValidator validator;
     private final AgentFlowCodec codec;
     private final StepLauncher stepLauncher;
+
+    /** 轮询单批默认/上限事件数，防止一次拉取过大。 */
+    private static final int POLL_DEFAULT_LIMIT = 200;
+    private static final int POLL_MAX_LIMIT = 1000;
 
     public RunService(WorkflowRunRepository runRepo,
                       WorkflowStepRepository stepRepo,
                       StepDependencyRepository depRepo,
                       StepAttemptRepository attemptRepo,
+                      WorkflowEventRepository eventRepo,
                       AgentFlowValidator validator,
                       AgentFlowCodec codec,
                       StepLauncher stepLauncher) {
@@ -57,6 +68,7 @@ public class RunService {
         this.stepRepo = stepRepo;
         this.depRepo = depRepo;
         this.attemptRepo = attemptRepo;
+        this.eventRepo = eventRepo;
         this.validator = validator;
         this.codec = codec;
         this.stepLauncher = stepLauncher;
@@ -209,5 +221,42 @@ public class RunService {
     @Transactional(readOnly = true)
     public List<StepAttempt> findAttempts(String stepId) {
         return attemptRepo.findByStepId(stepId);
+    }
+
+    /**
+     * 前端轮询展示类事件（轮询替代 SSE，见详细设计 §2.7）。取 {@code fromSequence} 之后的展示事件，
+     * 按 sequenceNo 升序、最多 {@code limit} 条；返回下次游标、是否还有更多、run 是否终态。
+     *
+     * @param fromSequence 上次轮询到的最大 sequenceNo（null 视为 0，从头拉）
+     * @param limit        本批最大条数（null 用默认，超上限按上限）
+     */
+    @Transactional(readOnly = true)
+    public EventPollResponse pollDisplayEvents(WorkflowRun run, Long fromSequence, Integer limit) {
+        long after = fromSequence == null ? 0L : fromSequence;
+        int size = limit == null ? POLL_DEFAULT_LIMIT : Math.min(Math.max(limit, 1), POLL_MAX_LIMIT);
+
+        // 多取 1 条以判定是否还有更多（hasMore），返回时再裁掉
+        List<WorkflowEvent> rows = eventRepo.findDisplayEventsAfter(
+                run.getId(), after, PageRequest.of(0, size + 1));
+        boolean hasMore = rows.size() > size;
+        if (hasMore) {
+            rows = rows.subList(0, size);
+        }
+
+        List<DisplayEventMessage> events = rows.stream().map(this::toDisplayMessage).toList();
+        long nextSequence = after;
+        for (DisplayEventMessage m : events) {
+            if (m.sequenceNo() != null && m.sequenceNo() > nextSequence) {
+                nextSequence = m.sequenceNo();
+            }
+        }
+
+        RunStatus status = run.getStatus();
+        return new EventPollResponse(events, nextSequence, hasMore, status, status.isTerminal());
+    }
+
+    private DisplayEventMessage toDisplayMessage(WorkflowEvent e) {
+        return new DisplayEventMessage(e.getEventId(), e.getEventType(), e.getCategory(),
+                e.getSequenceNo(), e.getPayload());
     }
 }

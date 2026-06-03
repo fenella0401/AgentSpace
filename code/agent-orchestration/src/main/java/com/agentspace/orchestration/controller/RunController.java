@@ -1,6 +1,7 @@
 package com.agentspace.orchestration.controller;
 
 import com.agentspace.orchestration.controller.dto.CreateRunRequest;
+import com.agentspace.orchestration.controller.dto.EventPollResponse;
 import com.agentspace.orchestration.controller.dto.RunDetailResponse;
 import com.agentspace.orchestration.controller.dto.RunResponse;
 import com.agentspace.orchestration.model.entity.StepAttempt;
@@ -90,6 +91,25 @@ public class RunController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "run 不存在: " + runId);
         }
         return broadcaster.subscribe(runId, fromSequence);
+    }
+
+    /**
+     * GET /runs/{runId}/events/poll — 展示类事件增量轮询（SSE 之外的轮询方案，建议间隔 5~10s）。
+     * 见详细设计 §2.7。无长连接、无常驻线程，天然兼容多副本。
+     *
+     * <p>前端按返回的 {@code nextSequence} 作为下次的 {@code fromSequence}；{@code hasMore=true}
+     * 表示本批被 limit 截断、应立即再拉一次；{@code runTerminal=true} 表示可停止轮询。
+     *
+     * @param fromSequence 上次轮询到的最大 sequenceNo（可选，缺省从头拉）
+     * @param limit        本批最大条数（可选，缺省 200，上限 1000）
+     */
+    @GetMapping("/{runId}/events/poll")
+    public EventPollResponse pollEvents(@PathVariable String runId,
+                                        @RequestParam(value = "fromSequence", required = false) Long fromSequence,
+                                        @RequestParam(value = "limit", required = false) Integer limit) {
+        WorkflowRun run = runService.findRun(runId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "run 不存在: " + runId));
+        return runService.pollDisplayEvents(run, fromSequence, limit);
     }
 
     private RunDetailResponse.StepView toStepView(WorkflowStep step) {

@@ -1054,6 +1054,7 @@ Agent-Orchestration 对外有两类调用方：**Agent-Management**（写操作 
 |---|---|---|
 | GET | `/runs/{runId}` | 查询 run / step / attempt 状态快照 |
 | GET (WS/SSE) | `/runs/{runId}/events` | 订阅 run 的实时事件流（展示类事件） |
+| GET | `/runs/{runId}/events/poll` | 展示类事件增量轮询（SSE 之外的方案，建议 5~10s 间隔） |
 
 出站（Agent-Orchestration 调 Agent-Management，见 9.8）：
 
@@ -1130,11 +1131,15 @@ GET /runs/{runId}
 
 GET (WS/SSE) /runs/{runId}/events
 → 实时推送该 run 的展示类事件（thinking / message / tool_use / tool_result / stdout / stderr）
+
+GET /runs/{runId}/events/poll?fromSequence={n}&limit={m}
+→ { events[], nextSequence, hasMore, runStatus, runTerminal }
 ```
 
 - 两者**规划**经用户级鉴权（验 JWT + run 授权范围）——**MVP 暂缓，当前为无鉴权直连**；浏览器直连，无需经 Agent-Management 转发；
 - `GET /runs/{runId}` 用于状态快照、Agent-Management 对账、断线补偿、reconcile；返回各级状态、失败原因、最近 heartbeat、sessionRef 等；
 - `GET /runs/{runId}/events` 用于前端实时展示，直连缩短链路（避免 Agent Core → Agent-Orchestration → Agent-Management → 浏览器 的多跳转发）；断线重连按 `sequence` 续传；
+- `GET /runs/{runId}/events/poll` 是 SSE 之外的**轮询方案**：增量拉取 `fromSequence` 之后的展示类事件（命中 `(run_id, sequence_no)` 索引），前端按返回的 `nextSequence` 作下次游标、`hasMore` 决定是否立即续拉、`runTerminal` 决定何时停轮询。无长连接、不占常驻线程，**天然兼容多副本**（SSE 当前为单实例内存广播，多副本需额外扇出）；建议轮询间隔 5~10s；
 - 历史回放的持久事实源仍在 Agent-Management（session/segment/event）；此直连流为实时通道。
 
 ### 9.7 事件回调（内部）
