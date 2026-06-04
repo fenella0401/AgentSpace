@@ -16,6 +16,7 @@ import com.agentspace.orchestration.config.OrchestrationProperties;
 import com.agentspace.orchestration.service.statemachine.StateTransitions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +46,7 @@ public class AttemptResultHandler {
     private final AgentFlowCodec codec;
     private final OrchestrationProperties props;
     private final OrchestrationMetrics metrics;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AttemptResultHandler(WorkflowRunRepository runRepo,
                                 WorkflowStepRepository stepRepo,
@@ -55,7 +57,8 @@ public class AttemptResultHandler {
                                 DownstreamTrigger downstreamTrigger,
                                 AgentFlowCodec codec,
                                 OrchestrationProperties props,
-                                OrchestrationMetrics metrics) {
+                                OrchestrationMetrics metrics,
+                                ApplicationEventPublisher eventPublisher) {
         this.runRepo = runRepo;
         this.stepRepo = stepRepo;
         this.attemptRepo = attemptRepo;
@@ -66,6 +69,7 @@ public class AttemptResultHandler {
         this.codec = codec;
         this.props = props;
         this.metrics = metrics;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -173,6 +177,9 @@ public class AttemptResultHandler {
     private void recalcRun(String runId) {
         // run 状态由 step 聚合驱动；Agent-Management 通过 GET /runs/{id} 主动查询终态（单存储，不回流）。
         runRepo.findById(runId).ifPresent(runRecalc::recalculate);
+        // 直驱快路径：本次 attempt 终态已释放串行单飞槽位、并可能把下游/兄弟 step 置 READY。
+        // 发事件让 RunScheduleKicker 在事务提交后立即启动下一个 READY step，无需等轮询。
+        eventPublisher.publishEvent(new RunProgressedEvent(runId));
     }
 
     private void touch(WorkflowStep step) {

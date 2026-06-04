@@ -81,11 +81,12 @@ class RunServiceIntegrationTest {
             assertThat(attempts.get(0).getRuntimeAttemptRef()).startsWith("mock-rt-");
         });
 
-        // mock 异步成功 → analyze 最终 COMPLETED；下游 fix 变 READY
+        // mock 异步成功 → analyze 最终 COMPLETED；下游 fix 被直驱启动（READY 后即被 kicker 接走，
+        // 故只断言「已离开 PENDING」——可能停在 READY/RUNNING/COMPLETED 任一推进态）。
         await().atMost(Duration.ofSeconds(5))
                 .until(() -> step(runId, "analyze").getStatus() == StepStatus.COMPLETED);
         await().atMost(Duration.ofSeconds(5))
-                .until(() -> step(runId, "fix").getStatus() == StepStatus.READY);
+                .until(() -> step(runId, "fix").getStatus() != StepStatus.PENDING);
     }
 
     @Test

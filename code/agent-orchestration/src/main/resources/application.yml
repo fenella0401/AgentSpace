@@ -28,8 +28,10 @@ orchestration:
   step-timeout: 30m
   heartbeat-timeout: 5m
   start-timeout: 2m
-  scheduler-poll-interval: 2s
-  scheduler-poll-interval-ms: 2000
+  # 调度轮询已降级为「兜底 sweeper」：正常推进由 RunScheduleKicker 直驱（事件即时启动），
+  # 轮询只兜底崩溃/丢事件/多副本 failover 下滞留的 READY step，故间隔放宽到 15s。见 README §2.5。
+  scheduler-poll-interval: 15s
+  scheduler-poll-interval-ms: 15000
   watchdog:
     poll-interval-ms: 5000
   # 示例：per-executorType 覆盖

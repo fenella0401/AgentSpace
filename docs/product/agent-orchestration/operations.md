@@ -24,7 +24,9 @@
 - [ ] 在真实 openGauss 上执行 `schema.sql` 建表，并启动应用确认 JPA `validate` 通过（本机无实例，仅 H2 PG 兼容模式 + 编译/配置验证过）
 - [ ] 评估 jsonb 原生类型 + GIN 索引需求（如需按 payload 检索），以 PG 专属脚本升级 `agent_flow` / `payload` 列
 - [ ] 验证 `SELECT ... FOR UPDATE SKIP LOCKED` 在 openGauss 兼容模式下的行锁语义（当前调度以 CAS 保证正确性，SKIP LOCKED 为性能优化）
-- [ ] 多副本部署下的调度并发测试（CAS 不重复调度）
+- [ ] 多副本部署下的调度并发测试（CAS 不重复调度；含直驱 kicker 与轮询 sweeper、多副本三方并发抢同一 READY step）
+- [ ] 直驱快路径压测：验证 `RunScheduleKicker` 异步线程池（`scheduleKickerExecutor`，core=2/max=8/queue=200）在高扇出
+      run 下不积压；队列满 CallerRuns 退化为同步时延可接受；崩溃/丢事件场景由轮询 sweeper（15s）兜底滞留 READY
 
 ### 2. 真实 Agent Core 联调（替换 mock）
 - [ ] 冻结并对齐 StartAttempt / CancelAttempt / QueryAttempt 接口与事件 envelope（T0.3）

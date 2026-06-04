@@ -11,6 +11,7 @@ import com.agentspace.orchestration.repository.WorkflowRunRepository;
 import com.agentspace.orchestration.repository.WorkflowStepRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,19 +39,22 @@ public class SuspendResumeService {
     private final StepLauncher stepLauncher;
     private final DownstreamTrigger downstreamTrigger;
     private final RunStateRecalculator runRecalc;
+    private final ApplicationEventPublisher eventPublisher;
 
     public SuspendResumeService(WorkflowRunRepository runRepo,
                                 WorkflowStepRepository stepRepo,
                                 AgentFlowCodec codec,
                                 StepLauncher stepLauncher,
                                 DownstreamTrigger downstreamTrigger,
-                                RunStateRecalculator runRecalc) {
+                                RunStateRecalculator runRecalc,
+                                ApplicationEventPublisher eventPublisher) {
         this.runRepo = runRepo;
         this.stepRepo = stepRepo;
         this.codec = codec;
         this.stepLauncher = stepLauncher;
         this.downstreamTrigger = downstreamTrigger;
         this.runRecalc = runRecalc;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -70,6 +74,8 @@ public class SuspendResumeService {
 
         downstreamTrigger.triggerDownstream(step);
         recalcRun(run);
+        // 直驱快路径：confirm 已把下游置 READY，发事件让 kicker 提交后立即启动（无需等轮询）。
+        eventPublisher.publishEvent(new RunProgressedEvent(runId));
         log.info("confirm step {} → COMPLETED", step.getStepKey());
         return step;
     }

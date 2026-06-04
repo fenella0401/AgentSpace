@@ -23,12 +23,12 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
-import com.agentspace.orchestration.service.run.SchedulingService;
 import com.agentspace.orchestration.service.run.RunService;
 
 /**
  * FE2+FE3 端到端集成测试（test + mock profile）。mock 异步推事件经
- * IngestingEventSink → EventIngestService 驱动状态机；调度器推进多 step。
+ * IngestingEventSink → EventIngestService 驱动状态机；RunScheduleKicker 直驱推进多 step
+ * （轮询在 test profile 下间隔极大，几乎不介入，故链条自驱动即验证了直驱快路径）。
  * 用 awaitility 等待异步状态收敛。
  */
 @SpringBootTest
@@ -37,8 +37,6 @@ class OrchestrationEngineIntegrationTest {
 
     @Autowired
     RunService runService;
-    @Autowired
-    SchedulingService schedulingService;
 
     private AgentFlowStep step(String id) {
         return new AgentFlowStep(id, id,
@@ -63,27 +61,19 @@ class OrchestrationEngineIntegrationTest {
                 .map(WorkflowStep::getStatus).orElseThrow();
     }
 
-    /** 驱动一次调度，把因上游完成而 READY 的下游 step 启动起来。 */
-    private void drive(String runId) {
-        runService.findSteps(runId).stream()
-                .filter(s -> s.getStatus() == StepStatus.READY)
-                .forEach(s -> schedulingService.tryLaunchReadyStep(s.getId()));
-    }
-
     @Test
     void chainAllSucceededDrivesRunCompleted() {
         String runId = runService.startRun(chainFlow("e2e-ok")).getId();
 
-        await().atMost(Duration.ofSeconds(5))
+        // 全程不手动驱动调度：a 完成 → 直驱启 b → b 完成 → 直驱启 c → 全 COMPLETED。
+        await().atMost(Duration.ofSeconds(10))
                 .until(() -> stepStatus(runId, "a") == StepStatus.COMPLETED);
-        drive(runId);
-        await().atMost(Duration.ofSeconds(5))
+        await().atMost(Duration.ofSeconds(10))
                 .until(() -> stepStatus(runId, "b") == StepStatus.COMPLETED);
-        drive(runId);
-        await().atMost(Duration.ofSeconds(5))
+        await().atMost(Duration.ofSeconds(10))
                 .until(() -> stepStatus(runId, "c") == StepStatus.COMPLETED);
 
-        await().atMost(Duration.ofSeconds(5))
+        await().atMost(Duration.ofSeconds(10))
                 .until(() -> runService.findRun(runId).orElseThrow().getStatus() == RunStatus.COMPLETED);
         assertThat(runService.findSteps(runId)).allMatch(s -> s.getStatus() == StepStatus.COMPLETED);
     }
