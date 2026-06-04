@@ -16,6 +16,7 @@
 | F-001 | 团队空间初始化与 Harness 配置 | `docs/function-design/F-001-team-space-initialization-and-harness-configuration.md` | 支持团队管理员在所属租户内创建团队空间，配置知识库、远程仓绑定和 Harness 配置中心。 |
 | F-002 | 基于 RBAC 的团队空间权限管理 | `docs/function-design/F-002-team-space-rbac-permission-management.md` | 支持团队空间创建者、管理员、团队成员和访客角色，并明确租户管理员不默认拥有团队空间内容写权限。 |
 | F-003 | 租户管理与租户权限治理 | `docs/function-design/F-003-tenant-management-and-tenant-permission-governance.md` | 支持系统管理员创建租户、授予租户管理员，租户管理员进入租户管理面查看本租户团队空间清单。 |
+| F-005 | 团队空间 Agent 任务对话与历史看板 | `docs/function-design/F-005-team-agent-task-conversation-and-history-board.md` | R-0630 核心功能，支持团队成员在团队空间内新建 Agent 对话任务，AgentSpace 后端调用外部 agent core，并展示任务历史、询问、输出和文档 diff。 |
 
 ## 时间安排
 
@@ -29,16 +30,19 @@
 ## 风险与依赖
 
 - 依赖 devuc 提供系统管理员、租户管理员和团队空间访问鉴权能力。
+- F-005 是 R-0630 核心功能，依赖 F-001 的团队空间与 Harness 配置基础、F-002 的团队空间 RBAC 和 F-003 的租户上下文。
+- 依赖外部公司 agent core 服务提供任务创建、事件流、用户回答回传、文档变更事件和错误码契约。
 - 租户作为团队空间必选上级域后，历史未归属空间迁移策略仍待确认；R-0630 首期只约束新建空间。
 - 租户管理员和团队管理员权限边界必须在前端权限态、后端鉴权和审计中保持一致。
 - 知识库配置扫描、远程仓绑定、Harness 配置回写和敏感环境变量存储仍需技术方案确认。
+- Agent 任务事件流、thinking 可展示边界、文档 diff 暂存和文档版本冲突处理需要在研发前确认。
 - R-0730 团队模板能力不进入本版本发布验收，仅保留后续需求衔接。
 
 ## 会签
 
 | 角色 | 结论 | 说明 |
 | --- | --- | --- |
-| 产品 | 待确认 | 需确认 R-0630 是否只覆盖新建租户和新建团队空间归属。 |
-| 技术 | 待确认 | 需确认租户模型、devuc 对接、RBAC 校验和 Harness 同步方案。 |
-| 测试 | 待确认 | 需补充租户、团队空间、权限、知识库和 Harness 配置验收用例。 |
-| 运维 | 待确认 | 需确认租户配置、权限配置和发布回滚关注点。 |
+| 产品 | 待确认 | 需确认 R-0630 以团队空间 Agent 任务对话为核心功能，并确认公开/私密任务、访客只读和文档 diff 处理规则。 |
+| 技术 | 待确认 | 需确认租户模型、devuc 对接、RBAC 校验、Harness 同步、外部 agent core 契约和事件流方案。 |
+| 测试 | 待确认 | 需补充租户、团队空间、权限、知识库、Harness 配置、Agent 任务对话、询问回答和文档 diff 验收用例。 |
+| 运维 | 待确认 | 需确认租户配置、权限配置、外部 agent core 连接配置、事件流稳定性和发布回滚关注点。 |
