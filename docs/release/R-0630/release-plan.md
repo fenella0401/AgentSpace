@@ -16,7 +16,7 @@
 | F-001 | 团队空间初始化与 Harness 配置 | `docs/function-design/F-001-team-space-initialization-and-harness-configuration.md` | 支持团队管理员在所属租户内创建团队空间，配置知识库、远程仓绑定和 Harness 配置中心。 |
 | F-002 | 基于 RBAC 的团队空间权限管理 | `docs/function-design/F-002-team-space-rbac-permission-management.md` | 支持团队空间创建者、管理员、团队成员和访客角色，并明确租户管理员不默认拥有团队空间内容写权限。 |
 | F-003 | 租户管理与租户权限治理 | `docs/function-design/F-003-tenant-management-and-tenant-permission-governance.md` | 支持系统管理员创建租户、授予租户管理员，租户管理员进入租户管理面查看本租户团队空间清单。 |
-| F-005 | 团队空间 Agent 任务创建与运行 | `docs/function-design/F-005-team-agent-task-creation-and-runtime.md` | R-0630 核心功能，支持团队成员新建 Agent 对话任务，生成 Harness 快照，调用外部 agent core，继续历史对话，维护对话名称，并处理 Agent 询问。 |
+| F-005 | 团队空间 Agent 任务创建与运行 | `docs/function-design/F-005-team-agent-task-creation-and-runtime.md` | R-0630 核心功能，支持团队成员新建 Agent 对话任务，生成 Harness 快照，调用外部 agent core，继续历史对话，维护对话名称，并处理 Agent 询问；不包含 US-005-007 `/` Agent 功能选择和 US-005-008 `@` 知识文件引用。 |
 | F-006 | 团队 Agent 任务历史与详情查看 | `docs/function-design/F-006-team-agent-task-history-and-detail-view.md` | R-0630 核心功能，支持具备团队空间访问权限的用户筛选、搜索、分页查看团队空间永久保留的任务清单，并查看用户指令、Agent 执行过程、最终 output、修改文件和 plan 进度。 |
 | F-007 | Agent 文档变更审阅与确认 | `docs/function-design/F-007-agent-document-change-review-and-confirmation.md` | R-0630 核心功能，支持展示 Agent 生成或修改的文档、查看内容和 diff，并接受或拒绝文档变更。 |
 
@@ -34,6 +34,7 @@
 - 依赖 devuc 提供系统管理员、租户管理员和团队空间访问鉴权能力。
 - F-005、F-006、F-007 共同构成 R-0630 核心 Agent 任务闭环，依赖 F-001 的团队空间与 Harness 配置基础、F-002 的团队空间 RBAC 和 F-003 的租户上下文。
 - F-005 依赖外部公司 agent core 服务提供任务创建、继续对话、事件流、用户回答回传和错误码契约。
+- F-005 的 US-005-007 `/` Agent 功能选择和 US-005-008 `@` 知识文件引用后移至 R-0730，R-0630 发布验收和 TC-005 不执行对应两个测试点。
 - F-006 依赖任务列表筛选搜索分页、分钟级相对更新时间、任务事件持久化、永久历史保留、对话名称同步、可展示执行过程事件、最终输出、修改文件、plan 进度事件和事件流稳定性。
 - F-007 依赖 agent core 文档变更事件、知识库文档版本控制、diff 生成和并发冲突检测。
 - 租户作为团队空间必选上级域后，历史未归属空间迁移策略仍待确认；R-0630 首期只约束新建空间。
@@ -46,7 +47,7 @@
 
 | 角色 | 结论 | 说明 |
 | --- | --- | --- |
-| 产品 | 待确认 | 需确认 R-0630 以团队空间 Agent 任务闭环为核心功能，并确认历史对话继续输入、对话名称、访客只读和文档 diff 处理规则。 |
+| 产品 | 待确认 | 需确认 R-0630 以团队空间 Agent 任务闭环为核心功能，并确认历史对话继续输入、对话名称、访客只读、文档 diff 处理规则，以及 US-005-007、US-005-008 后移至 R-0730。 |
 | 技术 | 待确认 | 需确认租户模型、devuc 对接、RBAC 校验、Harness 同步、外部 agent core 创建与继续对话契约、事件流方案、永久历史保留和文档版本控制。 |
-| 测试 | 待确认 | 需补充租户、团队空间、权限、知识库、Harness 配置、Agent 任务创建、继续输入、对话名称、历史详情、询问回答和文档 diff 验收用例。 |
+| 测试 | 待确认 | 需补充租户、团队空间、权限、知识库、Harness 配置、Agent 任务创建、继续输入、对话名称、历史详情、询问回答和文档 diff 验收用例；US-005-007、US-005-008 对应测试点本版本不执行。 |
 | 运维 | 待确认 | 需确认租户配置、权限配置、外部 agent core 连接配置、事件流稳定性和发布回滚关注点。 |
