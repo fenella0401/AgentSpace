@@ -13,8 +13,8 @@
 
 | 功能编号 | 功能名称 | 功能设计文档 | 说明 |
 | --- | --- | --- | --- |
-| F-004 | 团队模板配置与应用 | `docs/function-design/F-004-team-template-configuration-and-application.md` | 支持系统管理员维护全局模板、租户管理员维护租户级模板；模板可按需预置知识目录、AGENT.md、Skill、Tool 引用、Agent、Workflow、Hook、环境变量引用和可选远程代码仓，用户也可跳过模板直接创建空间。 |
-| F-005 | 团队空间 Agent 输入增强 | `docs/function-design/F-005-team-agent-task-creation-and-runtime.md` | 承接 US-005-007 和 US-005-008，支持在新建对话、继续输入和开放式询问回答中通过 `/` 选择 Agent 功能、通过 `@` 引用 Harness 知识空间文件；真实 Workflow 和 Hook 运行已在 R-0630 交付。 |
+| F-004 | 团队模板配置与应用 | `docs/function-design/F-004-team-template-configuration-and-application.md` | 支持系统管理员维护全局模板、租户管理员维护租户级模板；模板可按需预置知识目录、AGENT.md、Skill、Tool 引用、Agent、Hook、环境变量引用、Harness CICD 流水线定义候选和可选远程代码仓，用户也可跳过模板直接创建空间。 |
+| F-005 | 团队空间 Agent 输入增强 | `docs/function-design/F-005-team-agent-session-creation-and-runtime.md` | 承接 US-005-007 和 US-005-008，支持在新建手工 Agent 会话、继续输入和开放式询问回答中通过 `/` 选择 Agent 功能、通过 `@` 引用 Harness 知识空间文件；真实 Harness CICD 流水线任务运行由 F-008 在 R-0630 交付。 |
 
 ## 时间安排
 
@@ -32,7 +32,7 @@
 - 依赖 R-0630 的租户管理、团队空间租户归属、零配置运行、知识域、AGENT.md 与 `/.agentspace/` Harness 配置解析能力。
 - 模板中的所有模块均为可选；模板应用部分失败不得破坏已创建空间，空间仍须能使用平台默认 Agent 开始作业。
 - 模板仅保存 Tool 等市场资源引用和环境变量 Secret 引用，不复制市场连接参数或敏感值。
-- F-005 输入增强依赖 R-0630 已交付的默认与自定义 Agent、Workflow 选择、Hook 生命周期运行、Harness 快照和外部 agent core 适配链路。
+- F-005 输入增强依赖 R-0630 已交付的默认与自定义 Agent、Hook 生命周期运行、手工 Agent 会话快照和外部 agent core 适配链路；Harness CICD 流水线任务入口和 Run 状态机依赖 F-008。
 - US-005-007、US-005-008 需在 R-0730 前确认 Agent 功能目录字段、Harness 知识空间文件引用限制，以及传递给外部 agent core 的字段契约。
 - 模板资源版本不可用、授权失效、Secret 引用缺失、可选远程仓同步失败和模板应用部分成功的恢复策略需要在设计评审前明确。
 - 全局模板和租户级模板的可见范围、优先级和同名处理规则需要产品确认。

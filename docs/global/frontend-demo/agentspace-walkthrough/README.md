@@ -1,22 +1,13 @@
-# AgentSpace 全局前端演示
+# AgentSpace 产品体验 Demo
 
-这是 F-001 到 F-007 的中文串讲演示，位于 `docs/global/frontend-demo/agentspace-walkthrough/`。
+这是 AgentSpace 的静态产品体验页面，位于 `docs/global/frontend-demo/agentspace-walkthrough/`。
 
 ## 打开方式
 
 直接用浏览器打开 `index.html`，或在当前目录启动静态服务后访问本地地址。
 
-## 演示说明
-
-- 演示是独立静态 SPA，不接后端，不写入持久化存储。
-- 所有可见文案、按钮、状态和模拟数据均使用中文。
-- 交互只修改浏览器内存状态，刷新页面后恢复初始状态。
-- 右侧“PRD / 验收覆盖”和“待澄清问题”用于开发串讲时对齐范围。
-- F-004 中模板版本、复制、回滚、整体重新应用和同名排序仍保持待澄清，不在演示中擅自定稿。
-
 ## 文件
 
 - `index.html`：静态入口。
-- `styles.css`：Codex 桌面端风格参考的紧凑工作台样式。
-- `app.js`：中文模拟数据、渲染逻辑和交互状态。
-- `prd-coverage-matrix.md`：功能设计与演示覆盖矩阵。
+- `styles.css`：Codex 风格工作台样式。
+- `app.js`：中文样例数据、渲染逻辑和交互状态。
