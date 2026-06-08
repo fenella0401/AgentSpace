@@ -33,7 +33,7 @@
 | 9 | agent core 返回选项型和开放式询问 | 会话进入待输入，创建人回答后恢复运行 |
 | 10 | 访客提交开始作业，或非创建人继续输入、回答询问、修改名称 | 后端拒绝请求 |
 | 11 | 尝试通过 F-005 接口创建 `source=harness_pipeline_node` 会话 | 后端拒绝；该来源只能由 F-008 创建 |
-| 12 | 尝试继续或改名 Harness CICD 流水线节点会话 | 后端拒绝，并提示回到 Harness CICD 流水线任务页处理操作 |
+| 12 | 尝试继续或改名 Harness CICD 流水线 Agent 任务会话 | 后端拒绝，并提示回到 Harness CICD 流水线任务页处理操作 |
 | 13 | 会话开始 Hook 返回允许 | 主会话正常启动，HookExecution 记录允许 |
 | 14 | 会话开始 Hook 返回阻止 | 不调用 agent core，会话展示阻止原因 |
 | 15 | Tool 调用前 Hook 要求人工确认 | Tool 暂不执行，会话待输入，确认后按决定继续 |
@@ -65,5 +65,5 @@
 
 ## 备注
 
-- Harness CICD 流水线配置、Harness CICD 流水线任务运行、Run 状态机和节点 Agent 会话关联由 TC-008 覆盖；TC-005 仅验证开始作业入口能正确分流到 F-008。
+- Harness CICD 流水线配置、Harness CICD 流水线任务运行、Run 状态机和 Agent 任务会话关联由 TC-008 覆盖；TC-005 仅验证开始作业入口能正确分流到 F-008。
 - 联调前需补充 Hook 超时阈值、agent core 前置事件样例、Agent 内部 Tool 调用幂等契约和错误码。

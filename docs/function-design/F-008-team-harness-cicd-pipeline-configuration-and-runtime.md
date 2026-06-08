@@ -15,10 +15,10 @@
 
 - 本次变更：将 Harness CICD 流水线从 Harness 基础配置和手工 Agent 会话运行中拆出，独立承接流水线定义配置、画布编辑、测试发布、流水线任务创建、Run 状态机、运行清单和 Agent 任务会话关联。
 - 核心口径：
-  - Harness CICD 流水线是基于 Harness 运行多个 Agent 完成工作的结构化流水线定义，不是传统 Workflow 编排，也不作为 prompt 交给某个 Agent 自由执行。
+  - Harness CICD 流水线是基于 Harness 运行多个 Agent 完成工作的结构化流水线定义，不是通用流程编排器，也不作为 prompt 交给某个 Agent 自由执行。
   - 流水线图只编排 Agent 任务节点和任务依赖；不提供条件、人工确认、并行、子流水线、输出等独立节点类型。
   - 每个 Agent 任务内部声明目标 Agent、执行指令、输入、输出、用户审阅策略、重试、超时和失败策略。
-  - 用户审阅是 Agent 任务自身的 `waiting_review` 运行状态和 `AgentTaskReview` 记录，不在流水线图中增加审阅节点。
+  - 用户审阅是 Agent 任务自身的 `waiting_review` 运行状态和 `AgentTaskReview` 记录，只在 Agent 任务详情中配置和处理，不在配置画布或 Run 图节点上体现审阅行为。
   - AI 只生成结构化草稿；发布前必须人工确认配置、完成结构校验、模拟运行和 diff 确认。
   - HarnessPipelineEngine 根据任务依赖确定性调度 Agent 任务，并负责版本固定、重试、审阅等待与恢复、暂停恢复和取消。
   - 用户在新建 Agent 会话处的统一开始作业入口输入任务并选择已发布 Harness CICD 流水线，即创建并运行一条流水线任务。
@@ -71,7 +71,7 @@
 | UC-008-003 | US-008-006 | 执行 Agent 任务并创建 Agent 会话 | HarnessPipelineEngine、agent core、AgentSpace 后端 | HarnessPipelineAgentTaskRun 进入 `ready` 状态 | 1. Engine 根据依赖计算可运行 Agent 任务。<br>2. 后端按流水线初始输入和上游已确认输出生成任务输入。<br>3. 后端为 Agent 任务创建 `source=harness_pipeline_node` 的 AgentSession 和 HarnessSnapshot。<br>4. AgentSession 关联 harnessPipelineTaskId、harnessPipelineRunId 和 harnessPipelineAgentTaskRunId。<br>5. 调用 agent core 执行 Agent 任务。<br>6. 保存 Agent 会话事件、任务输入输出、尝试次数和状态。<br>7. 无需审阅时任务完成并解锁下游；需要审阅时进入 `waiting_review`，下游不得读取未通过审阅的输出。 | Agent 任务执行详情可在 F-006 Agent 会话详情中查看 |
 | UC-008-004 | US-008-004 | 审阅 Agent 任务输出并恢复流水线 | Harness CICD 流水线任务创建人、HarnessPipelineEngine | Agent 任务的 reviewPolicy 要求用户审阅，且 HarnessPipelineAgentTaskRun 为 `waiting_review` | 1. 流水线任务详情在该 Agent 任务内部展示输出摘要、修改内容、审阅要求和反馈输入。<br>2. 创建人提交通过或退回修改。<br>3. 后端按幂等键保存 AgentTaskReview。<br>4. 通过时 Agent 任务完成并解锁依赖它的下游任务。<br>5. 退回时保存反馈，并按任务重试策略创建新的执行尝试。 | 流水线继续运行、保持待审阅、失败或取消；流水线图中不增加审阅节点 |
 | UC-008-005 | US-008-004 | 取消或重试 Harness CICD 流水线 | Harness CICD 流水线任务创建人、HarnessPipelineEngine | 流水线未完成，且目标状态允许操作 | 1. 创建人取消 Run，或对可重试失败/退回的 Agent 任务发起重试。<br>2. 后端校验权限、Run 状态、Agent 任务状态和幂等策略。<br>3. 取消时停止后续调度。<br>4. 重试时复用任务幂等策略并创建新的 Agent 任务尝试。 | Run 取消，或从目标 Agent 任务继续；已完成外部副作用不被静默撤销 |
-| UC-008-006 | US-008-005 | 查看 Harness CICD 流水线任务清单和详情 | 空间用户、AgentSpace 后端 | 用户具备团队空间访问权限 | 1. 用户进入流水线任务清单。<br>2. 后端按权限返回任务名称、创建人、状态、流水线名称和最新更新时间。<br>3. 用户进入详情。<br>4. 前端展示只含 Agent 任务的 Run 图，以及任务状态、输入输出摘要、审阅事项、错误诊断和关联 Agent 会话入口。 | 用户可理解流水线进度；访客只读 |
+| UC-008-006 | US-008-005 | 查看 Harness CICD 流水线任务清单和详情 | 空间用户、AgentSpace 后端 | 用户具备团队空间访问权限 | 1. 用户进入流水线任务清单。<br>2. 后端按权限返回任务名称、创建人、状态、流水线名称和最新更新时间。<br>3. 用户进入详情。<br>4. 前端展示只含 Agent 任务的 Run 图。<br>5. 用户选择 Agent 任务后，在任务详情中查看输入输出摘要、审阅事项、错误诊断和关联 Agent 会话入口。 | 用户可理解流水线进度；访客只读 |
 | UC-008-007 | US-008-007 | Hook 启动 Harness CICD 流水线 | Hook Engine、HarnessPipelineEngine | Hook 动作配置为启动已发布流水线，且调用链未超限 | 1. Hook Engine 命中事件和条件。<br>2. 校验目标流水线版本、权限主体、输入映射和调用链深度。<br>3. 创建来源为 Hook 的 HarnessPipelineTask 和 HarnessPipelineRun。<br>4. Engine 按普通流水线任务执行。 | Hook 动作形成可审计流水线任务；超过调用链限制时拒绝启动 |
 
 ### 业务规则
@@ -86,7 +86,7 @@
   - 流水线定义通过 Agent 任务之间的有向依赖表达执行顺序。多个 Agent 任务同时满足依赖时，Engine 可按并发上限并发执行，但不需要并行节点。
   - `HarnessPipelineAgentTaskDefinition` 必须声明任务名称、Agent 版本、执行指令、输入 Schema 与映射、输出 Schema 与映射、reviewPolicy、retryPolicy、timeout 和 failurePolicy。
   - Agent 任务输入可引用流水线初始输入和已完成上游 Agent 任务的已确认输出。
-  - 用户审阅属于 Agent 任务内部策略。画布可在 Agent 任务上显示“需审阅”标识，Run 图可显示“待审阅”状态，但不得生成独立审阅节点。
+  - 用户审阅属于 Agent 任务内部策略。reviewPolicy、审阅状态和审阅控件仅在 Agent 任务属性或详情中展示，配置画布和 Run 图节点不显示审阅行为。
   - Skill 和 Tool 是 Agent 任务执行过程中的能力或依赖，由对应 Agent 和 Harness 配置管理。
   - AI 可以生成 Agent 任务、依赖和任务契约草稿，但不能直接发布或决定运行时任务走向。
   - 发布前必须通过图结构校验、依赖校验、输入输出映射校验、模拟运行和 diff 确认。
@@ -98,6 +98,7 @@
   - HarnessPipelineTask 状态为等待执行、运行中、等待输入、待审阅、完成、失败、已取消。
   - HarnessPipelineRun 状态为 `pending`、`running`、`waiting_input`、`waiting_review`、`completed`、`failed`、`cancelled`。
   - HarnessPipelineAgentTaskRun 状态为 `pending`、`ready`、`running`、`waiting_input`、`waiting_review`、`completed`、`failed`、`skipped`、`cancelled`。
+  - Run 图将 `waiting_review` 归入 Agent 任务的进行中展示；流水线任务清单和 Agent 任务详情可展示待审阅，但 Run 图节点不显示审阅标识。
   - 每个 Agent 任务运行必须创建一个 `source=harness_pipeline_node` 的 AgentSession；任务重试创建新的 AgentTaskRun attempt 和 AgentSession，并保留重试关系。
   - 只有已完成且审阅通过的 Agent 任务输出可以解锁并传递给下游任务。
   - 流水线自动创建的 Agent 会话不可被用户从 Agent 会话详情中直接继续、改名或取消；用户需回到流水线任务页操作。
@@ -134,17 +135,17 @@
 - 流水线配置完成页可以跳转到开始作业入口，并预选当前流水线。
 - 流水线任务启动时固定流水线定义、Agent、Skill、Tool、Hook、AGENT.md 和环境变量引用版本。
 - HarnessPipelineEngine 按 Agent 任务依赖执行、重试、等待审阅、恢复和取消；多个就绪任务可受并发上限控制并发运行。
-- Agent 任务需要审阅时，该 Agent 任务进入待审阅状态，Run 图不增加独立审阅节点。
+- Agent 任务需要审阅时，该 Agent 任务内部进入 `waiting_review`；流水线任务清单和 Agent 任务详情展示待审阅，Run 图节点不显示审阅行为。
 - 每个 Agent 任务自动创建 `source=harness_pipeline_node` 的 Agent 会话，并关联 HarnessPipelineTask、HarnessPipelineRun 和 HarnessPipelineAgentTaskRun。
 - 流水线任务清单展示任务名称、流水线名称、创建人、状态和最新更新时间。
-- 流水线任务详情展示只含 Agent 任务的 Run 图，以及任务状态、审阅事项、输入输出摘要、错误诊断和关联 Agent 会话入口。
+- 流水线任务详情展示只含 Agent 任务的 Run 图；用户选择 Agent 任务后，在任务详情中查看审阅事项、输入输出摘要、错误诊断和关联 Agent 会话入口。
 - Hook 可以在支持事件中启动已发布 Harness CICD 流水线，并形成可审计流水线任务。
 
 ### 边界场景
 
 - 流水线修改发布后，已启动 Run 继续使用启动时版本。
 - 多个 Agent 任务同时满足依赖时可以并发执行，但画布和 Run 图中不存在并行节点。
-- 上游 Agent 任务需要审阅时，只有通过审阅的输出可以传给下游任务。
+- 上游 Agent 任务需要审阅时，只有通过审阅的输出可以传给下游任务；审阅状态不在 Run 图节点上展示。
 - 流水线自动创建的 Agent 会话出现在 Agent 会话历史中，但不能从会话详情直接继续、改名或取消。
 - Hook 要求人工确认时由 Hook 自身的 RuntimeConfirmation 处理，不在流水线图中生成确认节点。
 
@@ -188,8 +189,8 @@
   - 展示任务名称、流水线名称、创建人、状态和最新更新时间。
   - 支持点击进入任务详情。
 - Harness CICD 流水线任务详情：
-  - Run 图只展示 Agent 任务节点、依赖连线和任务状态。
-  - 任务详情展示当前 Agent 任务、输入、输出、尝试次数、审阅状态和错误。
+  - Run 图只展示 Agent 任务节点、依赖连线和通用执行状态，不展示用户审阅行为或审阅标识。
+  - Agent 任务详情展示当前 Agent 任务、输入、输出、尝试次数、审阅状态和错误。
   - Agent 任务提供“查看 Agent 会话详情”入口，跳转 F-006。
   - Agent 任务处于待审阅时，在该任务详情内展示输出摘要、影响、反馈输入、通过和退回修改控件，不额外绘制审阅节点。
   - 运行中任务提供取消；失败或退回且可重试的 Agent 任务提供重试。

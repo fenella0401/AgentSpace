@@ -63,7 +63,7 @@
 - Skill 和 Agent 支持市场选择或空间内新建；AI 生成结果只形成结构化草稿。
 - Tool 仅从 AI 市场选择，保存市场资源 ID、版本、能力快照和授权引用。
 - Harness CICD 流水线只支持 Agent 任务节点，用于按“需求分析 -> 开发任务拆解 -> 开发任务执行 -> 集成测试”等步骤串联多个大颗粒度 Agent 标准作业。
-- 每个 Agent 任务内部声明目标 Agent、执行指令、输入、输出、用户审阅、重试、超时和失败策略；用户审阅是 Agent 任务运行状态，不作为独立流水线节点展示。
+- 每个 Agent 任务内部声明目标 Agent、执行指令、输入、输出、用户审阅、重试、超时和失败策略；用户审阅只在 Agent 任务详情中配置和处理，不在配置画布或 Run 图节点上体现。
 - HarnessPipelineEngine 负责 Agent 任务依赖调度、输出传递、重试、幂等、任务内审阅等待与恢复、暂停、恢复和取消。
 - Harness CICD 流水线任务拥有独立清单和详情；每个 Agent 任务自动创建 `source=harness_pipeline_node` 的 Agent 会话并进入 Agent 会话历史。
 - 事件源支持按事件类型配置自动同步计划、去重规则、输入映射、触发目标、启停状态和并发上限；事件进入后可创建 `source=event_source` 的 Agent 会话，或创建来源为事件源的 Harness CICD 流水线任务。

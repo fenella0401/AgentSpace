@@ -37,7 +37,7 @@
 | 12 | 执行“需求分析”Agent 任务 | 系统先创建 `source=harness_pipeline_node` 的 AgentSession，再调用 agent core |
 | 13 | 查看“需求分析”Agent 任务对应的 Agent 会话历史和详情 | Agent 会话出现在 F-006 清单中，显示 Harness CICD 流水线来源、任务、Run 和 Agent 任务链接 |
 | 14 | “需求分析”Agent 任务输出需求摘要和验收重点 | 输出通过 Schema 校验后保存为该 Agent 任务的已确认输出，并传递给“开发任务拆解” |
-| 15 | “开发任务拆解”Agent 任务配置为需要用户审阅 | Agent 任务完成执行后进入 `waiting_review`；Run 图只在该 Agent 任务上显示待审阅状态，不新增审阅节点 |
+| 15 | “开发任务拆解”Agent 任务配置为需要用户审阅 | Agent 任务完成执行后内部进入 `waiting_review`；流水线任务和 Agent 任务详情展示待审阅，Run 图节点不显示审阅行为或新增审阅节点 |
 | 16 | 创建人通过“开发任务拆解”的输出审阅 | 保存 AgentTaskReview；该 Agent 任务完成，并解锁“开发任务执行” |
 | 17 | 创建人退回“开发任务拆解”的输出审阅并重复提交同一幂等键 | 首次提交保存反馈并按重试策略创建新尝试；重复提交返回已有决定，不重复推进状态机 |
 | 18 | “开发任务执行”Agent 任务执行过程中调用 Skill 和 Tool | Skill/Tool 作为 Agent 能力执行；Tool 调用前完成 Hook 决策并保存结果 |

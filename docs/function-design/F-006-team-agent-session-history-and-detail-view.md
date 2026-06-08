@@ -143,7 +143,7 @@
 - 最终输出区展示给用户的最终 output 和修改文件清单。
 - 用户可以通过弹窗查看 Agent 执行 plan 与进度，弹窗不影响主界面。
 - 手工会话创建人修改名称后，会话看板和详情展示最新名称。
-- Harness CICD 流水线节点会话展示 Harness CICD 流水线来源、父 Harness CICD 流水线任务、Run 和节点链接。
+- Harness CICD 流水线 Agent 任务会话展示 Harness CICD 流水线来源、父 Harness CICD 流水线任务、Run 和 Agent 任务链接。
 - 修改文件入口仅跳转或调起 F-007 的文档变更审阅能力。
 
 ### 边界场景
@@ -154,9 +154,9 @@
 - 会话没有执行过程事件时，详情页仍可正常展示输入、最终 output 和修改文件。
 - 执行过程事件包含不可展示内容时，详情页不展示原始内容；普通文件路径、普通工具参数和普通工具结果不属于不可展示内容。
 - 会话没有 plan 事件时，plan 弹窗展示暂无 plan 提示和当前会话状态。
-- 相对更新时间能随会话事件、回答、名称修改、Harness CICD 流水线节点状态或文档提案变化，并在会话看板和详情页每 60 秒刷新一次。
+- 相对更新时间能随会话事件、回答、名称修改、Harness CICD 流水线 Agent 任务状态或文档提案变化，并在会话看板和详情页每 60 秒刷新一次。
 - 完成静止态和异常静止态会话仍保留在会话历史中。
-- Harness CICD 流水线节点会话详情只读，并提示回到 Harness CICD 流水线任务页处理操作。
+- Harness CICD 流水线 Agent 任务会话详情只读，并提示回到 Harness CICD 流水线任务页处理操作。
 
 ### 异常场景
 
@@ -171,7 +171,7 @@
 
 - 访客可以只读查看会话清单和详情。
 - 非手工会话创建人只读查看会话清单和详情，不展示继续输入、回答询问、修改名称或处理文档变更的控件。
-- Harness CICD 流水线节点会话对所有用户均不展示直接继续、改名、取消或重试控件。
+- Harness CICD 流水线 Agent 任务会话对所有用户均不展示直接继续、改名、取消或重试控件。
 - 访客不能继续输入、回答询问、修改名称或处理文档变更。
 - 未加入团队空间且未被授权的用户不能查看会话清单或详情。
 
@@ -180,13 +180,13 @@
 ### 是否需要刷新
 
 - 结论：是
-- 理由：需要新增来源标识、Harness CICD 流水线父任务链接、Harness CICD 流水线节点会话只读提示，并将历史入口统一为 Agent 会话看板。
+- 理由：需要新增来源标识、Harness CICD 流水线父任务链接、Harness CICD 流水线 Agent 任务会话只读提示，并将历史入口统一为 Agent 会话看板。
 
 ### 页面与交互
 
 - 团队空间 Agent 会话看板：
   - 展示会话名称、来源、创建人、状态和最新更新时间。
-  - 来源以 `手工创建`、`Harness CICD 流水线节点` 区分。
+  - 来源以 `手工创建`、`Harness CICD 流水线 Agent 任务` 区分。
   - 提供全部、我的、今天、近一周筛选项。
   - 提供会话名称模糊搜索输入框。
   - 提供分页控件。
@@ -198,14 +198,14 @@
   - 弹窗关闭后不影响主界面继续展示或输入。
 - Agent 会话详情页：
   - 顶部展示会话名称、来源、创建人、状态和最新更新时间。
-  - Harness CICD 流水线节点会话展示父 Harness CICD 流水线任务、Run、节点和返回链接。
+  - Harness CICD 流水线 Agent 任务会话展示父 Harness CICD 流水线任务、Run、Agent 任务和返回链接。
   - 主体展示输入、Agent 详细执行过程、最终 Agent 输出和修改文件。
   - Agent 详细执行过程以时间线或分组摘要展示调用的协作 Agent、使用的 skill、工具、阅读和编辑的文件。
   - 会话运行中流式追加执行过程和进度事件。
   - 收到 `final_output_started` 或等价阶段事件后默认收起详细执行过程，用户可点击展开。
   - 最终输出区展示给用户的最终 output 和修改文件清单。
   - 提供 plan / 进度弹窗入口。
-  - 非创建人、访客和 Harness CICD 流水线节点会话看到只读提示，不展示继续输入、回答、改名或文档处理控件。
+  - 非创建人、访客和 Harness CICD 流水线 Agent 任务会话看到只读提示，不展示继续输入、回答、改名或文档处理控件。
 
 ### 状态与文案
 
@@ -213,10 +213,10 @@
 - 无结果状态：没有符合条件的 Agent 会话。
 - 加载态：会话加载中、事件加载中、事件连接中。
 - 会话状态：运行中、待输入、完成静止态、异常静止态。
-- 来源：手工创建、Harness CICD 流水线节点。
+- 来源：手工创建、Harness CICD 流水线 Agent 任务。
 - 异常态：无权限、事件加载失败、事件流中断、暂无执行过程、暂无 plan、父 Harness CICD 流水线不可访问。
 - 只读态：当前用户仅可查看。
-- Harness CICD 流水线来源提示：`该 Agent 会话由 Harness CICD 流水线节点自动创建，请回到 Harness CICD 流水线任务页处理操作。`
+- Harness CICD 流水线来源提示：`该 Agent 会话由 Harness CICD 流水线 Agent 任务自动创建，请回到 Harness CICD 流水线任务页处理操作。`
 
 ## 前端设计
 
@@ -235,7 +235,7 @@
   - `AgentSessionBoard`、`AgentSessionListItem`、`AgentSessionSourceBadge`。
   - `AgentSessionFilterTabs`、`AgentSessionSearchInput`、`AgentSessionPagination`。
   - `AgentSessionDetail`、`ConversationTitle`、`AgentSessionInputBlock`。
-  - `HarnessPipelineParentLink`、`HarnessPipelineNodeSourceBanner`。
+  - `HarnessPipelineParentLink`、`HarnessPipelineAgentTaskSourceBanner`。
   - `AgentExecutionTimeline`、`ExecutionEventItem`、`ExecutionProcessCollapse`。
   - `FinalOutputBlock`、`ModifiedFileList`。
   - `PlanProgressTrigger`、`PlanProgressModal`。
@@ -280,7 +280,7 @@
   - `AgentSessionEventService`：查询会话事件。
   - `SessionEventStreamService`：向前端提供事件流。
   - `AgentPlanProgressService`：查询 Agent plan、步骤状态和进度事件。
-  - `HarnessPipelineParentLinkService`：解析 Harness CICD 流水线节点会话的父任务、Run 和节点链接。
+  - `HarnessPipelineParentLinkService`：解析 Harness CICD 流水线 Agent 任务会话的父任务、Run 和 Agent 任务链接。
   - `PermissionService`：判断团队空间会话列表和详情查看权限。
 - 核心数据对象：
   - `AgentSession`：会话 ID、租户 ID、团队空间 ID、创建人 ID、来源、会话名称、名称来源、状态、最新更新时间、父 Harness CICD 流水线关联。
@@ -291,7 +291,7 @@
   - `AgentSessionFinalOutput`：会话 ID、轮次 ID、给用户的最终 output、修改文件列表、创建时间。
   - `AgentModifiedFile`：文件路径、变更类型、变更摘要、文档变更提案 ID。
   - `AgentPlanProgress`：会话 ID、plan 步骤、当前步骤、步骤状态、最新进度事件。
-  - `HarnessPipelineParentLink`：HarnessPipelineTask、HarnessPipelineRun、HarnessPipelineNodeRun 的可见链接和摘要。
+  - `HarnessPipelineParentLink`：HarnessPipelineTask、HarnessPipelineRun、HarnessPipelineAgentTaskRun 的可见链接和摘要。
   - `AgentSessionListPage`：会话列表、总数、总页数、当前页、每页数量、是否有下一页、是否有上一页。
   - `AgentSessionStatus`：运行中、待输入、完成静止态、异常静止态。
 - 建议接口：
@@ -306,7 +306,7 @@
 - 查询会话列表时，返回当前团队空间内符合筛选、搜索和分页条件的 Agent 会话。
 - 会话列表查询参数至少支持 `filter`、`sessionNameKeyword`、`source`、`page` 和 `pageSize`。
 - `filter` 支持 `all`、`mine`、`today`、`last7Days`，分别对应全部、我的、今天和近一周。
-- `mine` 对手工会话按当前登录用户作为创建人过滤；对 Harness CICD 流水线节点会话按父 Harness CICD 流水线任务创建人过滤。
+- `mine` 对手工会话按当前登录用户作为创建人过滤；对 Harness CICD 流水线 Agent 任务会话按父 Harness CICD 流水线任务创建人过滤。
 - `today` 和 `last7Days` 按会话最新更新时间和团队空间时区过滤。
 - 会话列表默认按最新更新时间倒序排序；最新更新时间相同时按会话 ID 倒序稳定排序。
 - 默认 `pageSize` 为 20；响应必须包含会话列表、总数、总页数、当前页、每页数量、是否有下一页和是否有上一页。
@@ -326,7 +326,7 @@
 
 | 角色 | 结论 | 说明 |
 | --- | --- | --- |
-| 产品 | 待确认 | 需确认 Harness CICD 流水线节点会话在“我的”筛选中的归属和来源文案。 |
+| 产品 | 待确认 | 需确认 Harness CICD 流水线 Agent 任务会话在“我的”筛选中的归属和来源文案。 |
 | UI | 待确认 | 需输出会话看板、来源标识、详情页、Harness CICD 流水线链接、执行过程折叠态和只读态。 |
 | 前端 | 待确认 | 需落实列表筛选搜索分页、来源字段、Harness CICD 流水线链接、每 60 秒相对更新时间刷新和断线恢复。 |
 | 后端 | 待确认 | 需确认 agent core 字段映射、事件查询、来源字段、父 Harness CICD 流水线链接和 `final_output_started` 阶段事件。 |

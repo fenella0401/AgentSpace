@@ -93,16 +93,16 @@ const data = {
     },
     {
       id: "session-pipeline-node",
-      title: "支付回归验证节点",
+      title: "支付回归验证任务",
       status: "完成静止态",
-      source: "流水线节点",
+      source: "流水线 Agent 任务",
       creator: "系统",
       owner: false,
       updated: "昨天",
       agent: "测试 Agent",
       summary: "由支付发布流水线自动创建，输出回归结果。",
       messages: [
-        { id: "m1", side: "system", speaker: "系统", time: "昨天", body: "流水线节点已创建 Agent 会话。" },
+        { id: "m1", side: "system", speaker: "系统", time: "昨天", body: "流水线 Agent 任务已创建 Agent 会话。" },
         { id: "m2", side: "agent", speaker: "测试 Agent", time: "昨天", body: "回归用例全部通过，未发现阻断问题。" },
       ],
     },
@@ -131,15 +131,14 @@ const data = {
     {
       id: "pipeline-order-release",
       name: "订单服务发布流水线",
-      status: "等待确认",
+      status: "待审阅",
       creator: "李青",
       updated: "12:50",
       nodes: [
-        { name: "产品 Agent", status: "完成", detail: "整理目标和范围" },
-        { name: "架构 Agent", status: "运行中", detail: "生成接口定义" },
-        { name: "人工确认", status: "等待确认", detail: "确认输出可进入代码实现" },
-        { name: "代码 Agent", status: "等待执行", detail: "生成服务骨架" },
-        { name: "测试 Agent", status: "等待执行", detail: "执行接口回归" },
+        { name: "需求分析", status: "完成", detail: "产品 Agent 输出需求范围与验收重点" },
+        { name: "开发任务拆解", status: "运行中", reviewStatus: "待审阅", detail: "架构 Agent 输出开发任务清单" },
+        { name: "开发任务执行", status: "等待执行", detail: "开发 Agent 按任务清单完成实现" },
+        { name: "集成测试", status: "等待执行", detail: "测试 Agent 执行集成验证" },
       ],
     },
     {
@@ -149,9 +148,10 @@ const data = {
       creator: "周澜",
       updated: "10:18",
       nodes: [
-        { name: "知识 Agent", status: "完成", detail: "整理知识目录" },
-        { name: "审核节点", status: "运行中", detail: "检查敏感内容" },
-        { name: "输出节点", status: "等待执行", detail: "生成知识库版本" },
+        { name: "知识需求分析", status: "完成", detail: "知识 Agent 整理发布范围" },
+        { name: "知识内容生成", status: "运行中", detail: "内容 Agent 生成知识条目" },
+        { name: "敏感信息检查", status: "等待执行", detail: "安全 Agent 检查敏感内容" },
+        { name: "发布验证", status: "等待执行", detail: "验证 Agent 检查知识库版本" },
       ],
     },
   ],
@@ -214,7 +214,7 @@ function canHandleRuntime() {
 
 function badgeClass(value) {
   if (["启用", "正常", "已发布", "完成", "完成静止态", "已接受", "通过", "可用"].includes(value)) return "ok";
-  if (["运行中", "测试通过", "待输入", "待接受", "等待确认", "待补全", "草稿"].includes(value)) return "wait";
+  if (["运行中", "测试通过", "待输入", "待接受", "待审阅", "待补全", "草稿"].includes(value)) return "wait";
   if (["停用", "冲突", "失败", "异常静止态", "已拒绝", "无权限"].includes(value)) return "bad";
   return "neutral";
 }
@@ -613,6 +613,7 @@ function renderSnapshot() {
 
 function renderPipelines() {
   const current = pipeline();
+  const reviewTask = current.nodes.find((task) => task.reviewStatus === "待审阅");
   return `
     <section class="workbench two-col">
       <div class="content-area">
@@ -638,7 +639,7 @@ function renderPipelines() {
           <div class="panel-head"><h2>Run 图</h2>${badge(current.status)}</div>
           <div class="run-graph">
             ${current.nodes.map((node, index) => `
-              <div class="run-node ${node.status === "运行中" || node.status === "等待确认" ? "active" : ""}">
+              <div class="run-node ${node.status === "运行中" ? "active" : ""}">
                 <strong>${escapeHtml(node.name)}</strong>
                 ${badge(node.status)}
                 <span>${escapeHtml(node.detail)}</span>
@@ -651,17 +652,17 @@ function renderPipelines() {
       <aside class="context-panel">
         <h2>运行控制</h2>
         <div class="context-card">
-          <strong>人工确认</strong>
-          <span>确认接口定义可进入代码实现。</span>
-          ${badge(current.status)}
+          <strong>Agent 任务审阅</strong>
+          <span>${reviewTask ? `${escapeHtml(reviewTask.name)}的输出等待审阅。` : "当前没有待审阅的 Agent 任务。"}</span>
+          ${badge(reviewTask ? "待审阅" : "无需处理")}
         </div>
         <div class="toolbar vertical">
-          ${button("批准继续", "approve-pipeline", { variant: "primary", disabled: !canHandleRuntime() || current.status !== "等待确认" })}
-          ${button("拒绝终止", "reject-pipeline", { disabled: !canHandleRuntime() || current.status !== "等待确认" })}
-          ${button("重试节点", "retry-pipeline", { disabled: !canHandleRuntime() })}
+          ${button("通过审阅", "approve-pipeline", { variant: "primary", disabled: !canHandleRuntime() || !reviewTask })}
+          ${button("退回修改", "return-pipeline-review", { disabled: !canHandleRuntime() || !reviewTask })}
+          ${button("重试 Agent 任务", "retry-pipeline", { disabled: !canHandleRuntime() })}
         </div>
         <div class="context-section">
-          <h3>节点会话</h3>
+          <h3>Agent 任务会话</h3>
           <button class="todo" data-action="set-view" data-value="sessions"><span>订单模块接口设计</span>${badge("运行中")}</button>
         </div>
       </aside>
@@ -764,18 +765,28 @@ function handleAction(action, value) {
     case "select-pipeline":
       state.selectedPipelineId = value;
       break;
-    case "approve-pipeline":
-      pipeline().status = "运行中";
-      pipeline().nodes = pipeline().nodes.map((node) => node.status === "等待确认" ? { ...node, status: "完成" } : node);
-      setToast("流水线已继续");
+    case "approve-pipeline": {
+      const currentPipeline = pipeline();
+      const reviewIndex = currentPipeline.nodes.findIndex((node) => node.reviewStatus === "待审阅");
+      currentPipeline.status = "运行中";
+      currentPipeline.nodes = currentPipeline.nodes.map((node, index) => {
+        if (index === reviewIndex) return { ...node, status: "完成", reviewStatus: "已通过", detail: `${node.detail}，审阅已通过` };
+        if (index === reviewIndex + 1 && node.status === "等待执行") return { ...node, status: "运行中" };
+        return node;
+      });
+      setToast("Agent 任务审阅已通过，流水线继续运行");
       break;
-    case "reject-pipeline":
-      pipeline().status = "失败";
-      setToast("流水线已终止");
+    }
+    case "return-pipeline-review":
+      pipeline().status = "运行中";
+      pipeline().nodes = pipeline().nodes.map((node) => node.reviewStatus === "待审阅"
+        ? { ...node, status: "运行中", reviewStatus: "修改中", detail: "根据审阅反馈重新执行" }
+        : node);
+      setToast("Agent 任务已退回修改");
       break;
     case "retry-pipeline":
       pipeline().status = "运行中";
-      setToast("节点已进入重试");
+      setToast("Agent 任务已进入重试");
       break;
     case "select-tenant":
       state.selectedTenantId = value;

@@ -71,5 +71,5 @@
 ## 备注
 
 - 手工 Agent 会话真实运行由 TC-005 覆盖。
-- Harness CICD 流水线配置、任务运行、Run 状态机和节点 Agent 会话关联由 TC-008 覆盖。
+- Harness CICD 流水线配置、任务运行、Agent 任务状态机和 Agent 任务会话关联由 TC-008 覆盖。
 - AGENT.md 上下文预算、市场接口、历史配置映射和 Secret Service 正式契约确认后补充精确测试数据。
