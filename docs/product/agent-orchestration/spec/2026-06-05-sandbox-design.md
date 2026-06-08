@@ -17,6 +17,7 @@
 | 沙箱归属（Orchestration 持有映射） | run ↔ sandboxId | conversation ↔ sandboxId |
 | 沙箱触发 | run 启动即创建 | 惰性——仅当某轮需要执行时 |
 | 生命周期 | 随 run 常驻，终态销毁 | 四态分层 NONE→WARM→FROZEN→RECLAIMED |
+| 空闲冻结（两场景共用同一套机制） | step 挂起（`requiresConfirmation`）等确认期间空闲即冻结，确认/续聊时解冻 | 会话空闲即冻结（FROZEN），新消息需执行时解冻 |
 | 复杂任务承载 | 本身就是 | 派生工作流 run 去跑 |
 | 是否经编排层 | 是（全程） | 快路径不经，慢路径派生 run 才经 |
 
