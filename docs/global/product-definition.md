@@ -3,14 +3,14 @@
 ## 产品概述
 
 - 产品名称：AgentSpace
-- 产品定位：AgentSpace 是公司内部员工、团队和租户在线使用 Agent 的 Web SaaS 产品，面向租户治理、团队空间、知识上下文、Harness 基础配置、Agent 会话、Harness CICD 流水线任务、权限管理和协作管理提供统一入口。
+- 产品定位：AgentSpace 是公司内部员工、团队和租户在线使用 Agent 的 Web SaaS 产品，面向租户治理、团队空间、知识上下文、Harness 基础配置、Agent 会话、Harness CICD 流水线任务、事件源自动触发、权限管理和协作管理提供统一入口。
 - 目标用户：
-  - 系统管理员：拥有全局管理权限，负责创建租户、授予租户管理员、维护全局团队模板、治理平台级能力与审计。
-  - 租户管理员：负责本租户管理面内的租户配置、租户级团队模板和租户内团队空间清单治理。
+  - 系统管理员：拥有全局管理权限，负责创建租户、授予租户管理员、维护全局团队模板、治理平台级能力、事件源类型开放策略与审计。
+  - 租户管理员：负责本租户管理面内的租户配置、租户级团队模板、租户级事件源授权和租户内团队空间清单治理。
   - 团队创建者：在所属租户内创建团队空间，默认拥有该空间管理员权限，并负责空间初始治理。
-  - 团队管理员：管理成员、知识库、Harness 基础配置和 Harness CICD 流水线，并查看团队空间 Agent 会话与 Harness CICD 流水线任务历史。
-  - 团队成员：在被授权空间中使用 Agent，新建手工 Agent 会话或启动已发布 Harness CICD 流水线任务，不具备配置权限。
-  - 访客：在被授权空间中只读查看空间内容、Agent 会话历史和 Harness CICD 流水线任务历史。
+  - 团队管理员：管理成员、知识库、Harness 基础配置、Harness CICD 流水线和事件源配置，并查看团队空间 Agent 会话、Harness CICD 流水线任务历史与事件执行看板。
+  - 团队成员：在被授权空间中使用统一开始作业入口，选择 Agent 新建手工 Agent 会话，或选择已发布 Harness CICD 流水线启动流水线任务，并查看事件执行看板，不具备配置权限。
+  - 访客：在被授权空间中只读查看空间内容、Agent 会话历史、Harness CICD 流水线任务历史和事件执行看板。
 
 ## 需求背景
 
@@ -20,8 +20,10 @@
 - 团队空间需要从零配置快速开始，并能逐步完善 AGENT.md、Skill、Tool、Agent、Harness CICD 流水线、Hook 和环境变量。
 - Tool 的连接和复杂参数由公司 AI 市场统一治理，AgentSpace 只选择已发布 Tool，不重复建设连接配置。
 - 多角色协作需要统一 RBAC 权限管理，并对接公司 devuc 服务完成租户和空间鉴权。
-- Agent 会话是原子 Agent 执行记录；手工 Agent 会话由用户直接发起，Harness CICD 流水线节点 Agent 会话由系统根据 Harness CICD 流水线自动调起。
-- Harness CICD 流水线需要由确定性的 HarnessPipelineEngine 控制节点、分支、重试和人工确认；Harness CICD 流水线配置是结构化流水线定义，不作为 prompt 交给 Agent 自由执行。
+- Agent 会话是原子 Agent 执行记录；手工 Agent 会话由用户直接发起，Harness CICD 流水线 Agent 任务会话由系统根据流水线任务自动调起，事件源 Agent 会话由系统根据事件触发规则自动创建。
+- Harness CICD 流水线需要由确定性的 HarnessPipelineEngine 编排多个 Agent 任务、传递已确认输出、处理重试、任务内审阅、暂停恢复和取消；Harness CICD 流水线配置是结构化流水线定义，不作为 prompt 交给 Agent 自由执行。
+- 用户开始一项工作时使用同一个开始作业入口：输入任务后选择 Agent 会创建手工 Agent 会话，选择 Harness CICD 流水线会创建 Harness CICD 流水线任务。
+- 公司需求系统、缺陷系统等外部业务系统会持续产生可由 Agent 或 Harness CICD 流水线处理的新事件，人工搬运这些事件会造成响应延迟、重复触发和执行并发不可控。
 - Hook 需要在明确生命周期事件上执行校验、确认、通知和审计，不能依赖模型记住所有规则。
 
 ## 产品目标
@@ -38,10 +40,12 @@
 - 提供 Hook 中心，通过内置模板或结构化自定义规则响应明确生命周期事件。
 - 提供环境变量中心，仅在资源声明依赖时按需配置，敏感值由安全存储托管。
 - 提供独立 Harness CICD 流水线中心，通过自然语言生成结构化草稿、可视化画布确认、测试发布，并由 AgentSpace HarnessPipelineEngine 执行 Harness CICD 流水线任务。
+- 提供事件源中心，支持管理员配置公司需求系统、缺陷系统等事件源，按事件类型设置自动同步时间、触发目标和同一时间可触发的 Agent 会话或 Harness CICD 流水线任务数量。
+- 提供事件执行看板，集中展示事件触发任务的 backlog、agent working、wait review 和 done 状态，并通过原子详情能力跳转查看 Agent 会话或 Harness CICD 流水线任务执行详情。
 - 支持知识库配置文件与 Portal 双向同步，并通过版本、校验、测试和 diff 避免静默覆盖。
 - 支持从用户选定知识库目录中的 `.codex`、`.claudecode`、`.opencode` 导入历史 Harness 草稿，导入后仍需人工发布。
-- 支持团队成员创建手工 Agent 会话、继续历史会话、处理 Agent 询问、查看 Agent 会话历史并审阅文档变更。
-- 支持团队成员启动已发布 Harness CICD 流水线任务，查看 Harness CICD 流水线任务清单、Run 状态、节点状态和关联 Agent 会话详情。
+- 支持团队成员在开始作业入口输入任务并选择 Agent 或 Harness CICD 流水线；选择 Agent 时创建手工 Agent 会话，选择流水线时创建 Harness CICD 流水线任务。
+- 支持团队成员继续历史手工会话、处理 Agent 询问、查看 Agent 会话历史、查看 Harness CICD 流水线任务清单与 Run 详情，并审阅文档变更。
 
 ## 范围边界
 
@@ -58,9 +62,12 @@
 - Agent、Skill、Tool、Hook 和环境变量五个基础资源中心，以及 AGENT.md 指引中心。
 - Skill 和 Agent 支持市场选择或空间内新建；AI 生成结果只形成结构化草稿。
 - Tool 仅从 AI 市场选择，保存市场资源 ID、版本、能力快照和授权引用。
-- Harness CICD 流水线支持 Agent、条件、人工确认、并行、子流水线和输出节点，用于串联产品 Agent、开发 Agent、运营 Agent 等大颗粒度 Agent 标准作业。
-- HarnessPipelineEngine 负责流程状态、分支、重试、幂等、暂停、恢复和取消。
-- Harness CICD 流水线任务拥有独立清单和详情；每个 Agent 节点自动创建 `source=harness_pipeline_node` 的 Agent 会话并进入 Agent 会话历史。
+- Harness CICD 流水线只支持 Agent 任务节点，用于按“需求分析 -> 开发任务拆解 -> 开发任务执行 -> 集成测试”等步骤串联多个大颗粒度 Agent 标准作业。
+- 每个 Agent 任务内部声明目标 Agent、执行指令、输入、输出、用户审阅、重试、超时和失败策略；用户审阅是 Agent 任务运行状态，不作为独立流水线节点展示。
+- HarnessPipelineEngine 负责 Agent 任务依赖调度、输出传递、重试、幂等、任务内审阅等待与恢复、暂停、恢复和取消。
+- Harness CICD 流水线任务拥有独立清单和详情；每个 Agent 任务自动创建 `source=harness_pipeline_node` 的 Agent 会话并进入 Agent 会话历史。
+- 事件源支持按事件类型配置自动同步计划、去重规则、输入映射、触发目标、启停状态和并发上限；事件进入后可创建 `source=event_source` 的 Agent 会话，或创建来源为事件源的 Harness CICD 流水线任务。
+- 事件执行看板展示事件触发任务的来源、类型、目标、执行状态、等待原因和完成结果；点击 Agent 会话任务复用 Agent 会话详情原子功能，点击流水线任务复用 Harness CICD 流水线任务详情原子功能。
 - Hook 支持手工 Agent 会话、Tool 调用前后、对象写入前后、Harness CICD 流水线生命周期、Harness 发布前和发布后事件。
 - Hook 动作支持注入上下文、校验、阻止、人工确认、执行 Skill、启动 Harness CICD 流水线、通知和审计。
 - 环境变量按资源依赖补充，敏感值只保存安全引用。
@@ -68,7 +75,7 @@
 - Portal 保存前进行结构化校验、模拟测试、配置 diff 和版本冲突检查。
 - 当前生效 Harness 配置生成手工 Agent 会话级或 HarnessPipelineRun 级快照。
 - Agent 会话创建、继续输入、询问回答、会话历史、文档 diff 审阅。
-- Harness CICD 流水线配置、任务启动、Run 状态、节点状态、人工确认、取消和重试。
+- 统一开始作业入口中的 Harness CICD 流水线目标选择、任务启动、Run 状态、Agent 任务状态、任务内审阅、取消和重试。
 - 全局团队模板和租户级团队模板，可预置知识库结构和 Harness 配置。
 
 **不包含：**
@@ -83,6 +90,9 @@
 - 强制要求空间配置知识库、远程仓、AGENT.md、Skill、Tool、Agent、Harness CICD 流水线、Hook 或环境变量。
 - 远程代码仓平台的账号体系、凭据申请和仓库权限审批。
 - 项目编号体系本身的创建、校验规则和主数据治理。
+- 公司需求系统、缺陷系统等外部事件源系统自身的问题创建、流转、审批、状态主数据治理和账号权限体系。
+- 任意自定义脚本型事件采集、无结构爬虫、外部系统双向写回和实时 webhook 网关；首版以平台支持的结构化事件源适配器和按计划同步为边界。
+- 在事件执行看板内重新实现 Agent 会话详情或 Harness CICD 流水线任务详情；看板只聚合状态并跳转原子详情能力。
 
 ## 核心场景
 
@@ -101,11 +111,16 @@
 | 配置 Harness CICD 流水线 | 团队管理员 | 沉淀标准作业流水线 | 进入独立 Harness CICD 流水线中心，通过画布确认后发布。 |
 | 按需补充环境变量 | 团队管理员 | 满足资源依赖 | 仅在依赖出现时配置，敏感值进入安全存储。 |
 | 导入历史配置 | 团队管理员 | 复用已有 Agent 配置 | 从 `.codex`、`.claudecode`、`.opencode` 生成 Portal 草稿，不直接生效。 |
-| 新建手工 Agent 会话 | 团队成员 | 输入指令并启动 Agent | 可使用默认 Agent 或自定义 Agent。 |
-| 启动 Harness CICD 流水线任务 | 团队成员 | 按标准流程完成复杂工作 | Harness CICD 流水线任务独立展示，节点自动创建 Agent 会话。 |
+| 开始作业 | 团队成员 | 输入任务并选择执行方式 | 同一入口可选择 Agent 或 Harness CICD 流水线。 |
+| 新建手工 Agent 会话 | 团队成员 | 输入指令并启动 Agent | 在开始作业入口选择默认 Agent 或自定义 Agent。 |
+| 启动 Harness CICD 流水线任务 | 团队成员 | 按标准流水线完成复杂工作 | 在开始作业入口选择已发布 Harness CICD 流水线；任务独立展示，Agent 任务自动创建 Agent 会话。 |
+| 配置事件源 | 团队管理员 | 自动接入外部业务事件 | 配置需求系统、缺陷系统等事件源，设置同步时间、事件类型、去重规则、触发目标和并发上限。 |
+| 自动触发事件任务 | AgentSpace 后端 | 将外部事件转为可执行任务 | 事件同步进入 backlog 后，系统按每类任务并发限制创建 Agent 会话或 Harness CICD 流水线任务。 |
+| 查看事件执行看板 | 空间用户 | 跟踪事件触发任务状态 | 看板按 backlog、agent working、wait review、done 展示事件触发任务。 |
+| 查看事件任务详情 | 空间用户 | 深入查看执行过程 | 点击 Agent 会话任务进入 F-006 Agent 会话详情，点击流水线任务进入 F-008 Harness CICD 流水线任务详情。 |
 | 回答 Agent 询问 | 对话创建人 | 推动手工会话继续运行 | 支持选项型或开放式回答。 |
-| 处理 Harness CICD 流水线确认 | Harness CICD 流水线任务创建人 | 推动流程继续或终止 | 在 Harness CICD 流水线任务页处理确认、取消和重试。 |
-| 查看 Agent 会话历史 | 空间用户 | 查看会话清单和详情 | 同时包含手工会话与 Harness CICD 流水线节点会话。 |
+| 处理 Harness CICD 流水线 Agent 任务审阅 | Harness CICD 流水线任务创建人 | 推动流程继续或终止 | 在 Harness CICD 流水线任务页处理 Agent 任务审阅、取消和重试。 |
+| 查看 Agent 会话历史 | 空间用户 | 查看会话清单和详情 | 同时包含手工会话、Harness CICD 流水线 Agent 任务会话和事件源触发会话。 |
 | 查看 Harness CICD 流水线任务历史 | 空间用户 | 查看流程清单和 Run 详情 | 访客只读，创建人可处理运行控制。 |
 | 审阅文档变更 | 对话创建人 | 接受或拒绝 Agent 修改 | 文档变更先形成待接受 diff。 |
 | 应用团队模板 | 团队管理员 | 快速初始化空间 | 模板中的每项配置均可选，不阻止零配置开始作业。 |
@@ -113,13 +128,17 @@
 ## 关键能力
 
 - 零配置运行：空间创建完成后可直接使用平台默认 Agent。
+- 统一开始作业入口：用户输入任务后选择 Agent 或 Harness CICD 流水线，分别进入手工 Agent 会话或 HarnessPipelineTask。
+- 事件驱动作业入口：管理员配置事件源后，外部新需求、新问题单等事件可按计划同步进入 backlog，并自动触发 Agent 会话或 Harness CICD 流水线任务。
+- 事件类型级触发策略：每类事件独立配置触发目标、输入映射、同步时间、去重键和同一时间可触发的会话或流水线数量。
+- 事件执行看板：按 backlog、agent working、wait review 和 done 聚合展示事件触发任务，并复用 Agent 会话详情和 Harness CICD 流水线任务详情作为原子执行详情。
 - 三层执行模型：Agent 会话是原子 Agent 执行记录；Harness CICD 流水线配置是结构化流水线定义；Harness CICD 流水线任务 / Run 由 HarnessPipelineEngine 状态机执行。
 - 分层上下文：AGENT.md 存放长期指引，知识库保存资料，Skill 按任务加载。
 - AGENT.md 继承：空间级规则与 `knowledgeDomainIds` 或执行对象声明命中的知识域规则叠加，局部规则不能放宽平台安全策略。
 - Tool 市场引用：AgentSpace 只消费市场发布版本和授权引用，底层可由 MCP 等协议实现。
 - AI 辅助配置：自然语言只生成结构化草稿和依赖建议，发布前必须人工确认、测试和查看 diff。
-- 确定性 Harness CICD 流水线：HarnessPipelineEngine 控制多 Agent 流程，agent core 负责执行 Agent 节点；Skill 和 Tool 是 Agent 执行过程中的能力。
-- 节点会话统一记录：Harness CICD 流水线每个 Agent 节点自动创建 `source=harness_pipeline_node` 的 Agent 会话，并在 Agent 会话历史中可查看。
+- 确定性 Harness CICD 流水线：HarnessPipelineEngine 控制多 Agent 任务依赖、输出传递、重试和任务内审阅，agent core 负责执行单个 Agent 任务；Skill 和 Tool 是 Agent 执行过程中的能力。
+- Agent 任务会话统一记录：Harness CICD 流水线每个 Agent 任务自动创建 `source=harness_pipeline_node` 的 Agent 会话，并在 Agent 会话历史中可查看。
 - 确定性 Hook：只响应明确事件，支持同步拦截和异步通知；Harness 发布拆分为可阻止的 before 和不可回滚的 after，并限制调用链递归。
 - 依赖驱动配置：环境变量和 Tool 按 Skill、Agent、Harness CICD 流水线或 Hook 的依赖就地补充。
 - 历史配置导入：旧目录只作为草稿来源，MCP/server/tool 配置仅生成市场 Tool 匹配建议，subagent 配置映射为 Agent 草稿，Harness CICD 流水线配置映射为 Harness CICD 流水线草稿候选。
@@ -140,7 +159,7 @@
 ```
 
 - 双向同步：Portal 与新文件布局之间同步，外部变化只形成待确认草稿，保存前校验基准版本，冲突时禁止静默覆盖。
-- 版本快照：手工 Agent 会话和 HarnessPipelineRun 固定 AGENT.md、Agent、Skill、Tool、Harness CICD 流水线、Hook 与环境变量引用版本。
+- 版本快照：手工 Agent 会话、事件源 Agent 会话和 HarnessPipelineRun 固定 AGENT.md、Agent、Skill、Tool、Harness CICD 流水线、Hook 与环境变量引用版本。
 - 非开发适配：远程代码仓、开发 Tool 和代码规则均为可选，业务团队可以只使用资料、AGENT.md 和默认 Agent。
 
 ## 约束与风险
@@ -148,8 +167,10 @@
 - AGENT.md 过长会挤占任务上下文，需要提供长度提示、分层指引和知识索引。
 - AGENT.md、Skill 与知识库内容容易重复，需要明确“长期规则、按需方法、资料正文”的边界。
 - Tool 市场资源的版本、权限、授权失效和下线会影响空间配置稳定性。
-- Harness CICD 流水线的重试、并行、人工确认、子流程和节点 Agent 会话关联会增加状态恢复与幂等复杂度。
-- Hook 可能形成 Hook 到 Harness CICD 流水线、子流水线再触发 Hook 的循环，需要调用链和最大深度保护。
+- Harness CICD 流水线的 Agent 任务重试、任务内审阅、输出传递和 Agent 会话关联会增加状态恢复与幂等复杂度。
+- Hook 可能形成 Hook 到 Harness CICD 流水线、流水线生命周期 Hook 再触发 Hook 的循环，需要调用链和最大深度保护。
+- 外部事件源同步可能出现重复事件、迟到事件、字段变更、接口限流或事件风暴，需要去重、同步水位、失败重试和并发保护。
+- 事件源任务可能携带需求、缺陷或客户信息，必须避免敏感字段进入日志、看板摘要、Agent prompt 或流水线输入中的非必要位置。
 - Portal 与配置文件并发修改存在版本漂移和冲突风险。
 - 敏感环境变量、Tool 授权和任务事件必须防止明文进入日志、diff、知识库或快照。
 - 新布局运行时不兼容 `.codex`、`.claudecode` 或 `.opencode`；历史配置导入只生成草稿，不保证所有第三方字段可映射。
@@ -159,6 +180,6 @@
 
 | 角色 | 结论 | 说明 |
 | --- | --- | --- |
-| 产品 | 待确认 | 需确认 AGENT.md 内容上限、知识域命中规则、默认 Agent、六个基础配置中心交互稿和 Harness CICD 流水线独立入口。 |
-| 技术 | 待确认 | 需确认 `.agentspace` Schema、AgentSession、HarnessPipelineEngine、Hook 事件协议、Tool 市场契约和 Secret Service。 |
-| 测试 | 待确认 | 需覆盖零配置、分层 AGENT.md、市场 Tool、配置发布、手工 Agent 会话、Harness CICD 流水线任务、节点会话、Hook 治理和非开发空间。 |
+| 产品 | 待确认 | 需确认 AGENT.md 内容上限、知识域命中规则、默认 Agent、六个基础配置中心交互稿、统一开始作业入口、事件源首批类型、事件状态文案和事件并发策略。 |
+| 技术 | 待确认 | 需确认 `.agentspace` Schema、AgentSession、HarnessPipelineEngine、Hook 事件协议、Tool 市场契约、Secret Service、事件源适配器契约、同步水位和事件触发调度模型。 |
+| 测试 | 待确认 | 需覆盖零配置、分层 AGENT.md、市场 Tool、配置发布、手工 Agent 会话、Harness CICD 流水线任务、Agent 任务会话、Hook 治理、事件源同步、事件触发并发、事件执行看板和非开发空间。 |

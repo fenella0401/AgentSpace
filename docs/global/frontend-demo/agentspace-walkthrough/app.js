@@ -269,7 +269,7 @@ function renderSidebar() {
         </div>
       </div>
       <div class="sidebar-actions">
-        ${button("新建会话", "new-session", { variant: "primary", disabled: !canCreateSession() })}
+        ${button("开始作业", "new-session", { variant: "primary", disabled: !canCreateSession() })}
       </div>
       <nav class="nav-list" aria-label="AgentSpace 产品导航">
         ${Object.entries(groups).map(([section, items]) => `
@@ -532,7 +532,11 @@ function renderSessions() {
           ${current.messages.map(renderMessage).join("")}
         </div>
         <div class="composer">
-          <textarea data-bind="composer" placeholder="向 Agent 提问，或 @ 引用知识文件">${escapeHtml(state.composer)}</textarea>
+          <div class="segmented wide">
+            <button class="active">Agent</button>
+            <button>Harness CICD 流水线</button>
+          </div>
+          <textarea data-bind="composer" placeholder="输入任务说明">${escapeHtml(state.composer)}</textarea>
           <div class="composer-actions">
             <div class="hint">当前快照：AGENT.md、Agent、Skill、Tool、Hook、环境变量</div>
             ${button("发送", "send-message", { variant: "primary", disabled: !canCreateSession() })}
@@ -617,7 +621,7 @@ function renderPipelines() {
             <h1>流水线任务</h1>
             <p>按结构化流程执行多 Agent 标准作业。</p>
           </div>
-          ${button("启动流水线", "start-pipeline", { variant: "primary", disabled: !canCreateSession() })}
+          ${button("运行流水线", "start-pipeline", { variant: "primary", disabled: !canCreateSession() })}
         </div>
         <div class="panel">
           <div class="panel-head"><h2>任务清单</h2>${badge(data.pipelineRuns.length + " 个任务")}</div>
@@ -818,7 +822,8 @@ function handleAction(action, value) {
       setToast("变更已打开");
       break;
     case "start-pipeline":
-      setToast("流水线启动入口已打开");
+      state.currentView = "sessions";
+      setToast("已打开开始作业入口，并预选当前流水线");
       break;
     case "view-artifact":
       setToast(`${value} 已打开`);

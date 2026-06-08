@@ -13,16 +13,17 @@
 
 ## 变更摘要
 
-- 本次变更：统一使用“Agent 会话”表达原子 Agent 执行记录，并将 Harness CICD 流水线任务启动、Run 状态机和运行清单移交 F-008；本功能只负责用户手工发起的 Agent 会话创建、继续、询问回答、会话命名、Agent core 事件和 Hook 联动。
+- 本次变更：统一使用“Agent 会话”表达原子 Agent 执行记录，并将新建 Agent 会话处升级为统一“开始作业”入口；用户输入任务后可以选择 Agent 或已发布 Harness CICD 流水线。
+- 职责口径：F-005 负责统一开始作业入口、目标选择交互和手工 Agent 会话分支；当用户选择 Harness CICD 流水线时，前端调用 F-008 创建 HarnessPipelineTask，后续 Run 状态机、任务清单和 Agent 任务会话关联仍由 F-008 负责。
 - 2026-06-08 拆分口径：
   - 手工 Agent 会话：由用户在对话入口输入指令创建，`AgentSession.source=manual`。
-  - Harness CICD 流水线节点会话：由 F-008 HarnessPipelineEngine 自动创建，`AgentSession.source=harness_pipeline_node`，不在本功能中发起。
-  - F-005 不再提供“选择 Harness CICD 流水线启动任务”的入口，也不展示 HarnessPipelineRun 图、人工确认、取消或节点重试。
-- R-0730 继续承接 US-005-007 `/` Agent 功能选择和 US-005-008 `@` 知识文件引用，不与 F-008 Harness CICD 流水线任务入口混合。
+  - Harness CICD 流水线 Agent 任务会话：由 F-008 HarnessPipelineEngine 自动创建，`AgentSession.source=harness_pipeline_node`，不在本功能中发起。
+  - F-005 不创建 HarnessPipelineTask，不展示 HarnessPipelineRun 图、Agent 任务审阅、取消或任务重试。
+- R-0730 继续承接 US-005-007 `/` Agent 功能选择和 US-005-008 `@` 知识文件引用；这些输入增强可作用于手工 Agent 会话分支，流水线分支的结构化输入由 F-008 校验。
 - 影响范围：Agent 会话创建入口、Harness 快照、agent core 事件协议、Hook 生命周期执行、会话命名、询问回答、TC-005、F-006 和发布计划。
 - 与相邻功能的边界：
   - F-006 负责 Agent 会话历史与详情展示，包含 `manual` 和 `harness_pipeline_node` 两类来源。
-  - F-008 负责 Harness CICD 流水线配置、Harness CICD 流水线任务启动、Run 状态机、节点会话创建和 Harness CICD 流水线任务清单。
+  - F-008 负责 Harness CICD 流水线配置、Harness CICD 流水线任务创建、Run 状态机、Agent 任务会话创建和 Harness CICD 流水线任务清单，并向统一开始作业入口提供可启动流水线列表和创建任务接口。
   - Hook 配置由 F-001 管理，本功能负责手工 Agent 会话生命周期中的 Hook 执行。
 - 待确认问题：
   - 外部 agent core 的正式会话创建、继续对话、询问、Agent 内部 Tool 调用前置事件和对象写入事件协议。
@@ -36,6 +37,7 @@
 ### 用户目标
 
 - 创建者、管理员和团队成员可以在空间内输入指令，手工创建 Agent 会话。
+- 创建者、管理员和团队成员可以在同一个开始作业入口输入任务，并选择“Agent”或“Harness CICD 流水线”作为执行目标。
 - 零配置空间可以直接使用平台默认 Agent，不要求存在知识库或自定义 Harness。
 - 用户可以在创建会话前选择空间默认 Agent 或其他已发布 Agent。
 - 系统为每次用户输入固定 AGENT.md、Agent、Skill、Tool、Hook 和环境变量引用版本。
@@ -49,8 +51,9 @@
 | US 编号 | Use Story | 用户角色 | 用户价值 | 生成时间 | 交付版本 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
 | US-005-001 | 作为团队成员，我希望输入首条指令创建 Agent 会话，以便使用默认或指定 Agent。 | 创建者、管理员、团队成员 | 快速开始作业 | 2026-06-04 | R-0630 | 零配置使用平台默认 Agent |
+| US-005-010 | 作为团队成员，我希望在开始作业入口选择 Agent 或 Harness CICD 流水线，以便用同一个输入入口启动不同执行方式。 | 创建者、管理员、团队成员 | 降低入口理解成本 | 2026-06-08 | R-0630 | 选择流水线时由 F-008 创建任务 |
 | US-005-002 | 作为对话创建人，我希望系统自动生成并允许修改会话名称，以便识别历史会话。 | 对话创建人 | 提升历史识别效率 | 2026-06-04 | R-0630 | 生成失败使用兜底规则 |
-| US-005-003 | 作为对话创建人，我希望继续本人创建的手工会话，以便围绕同一上下文持续推进。 | 对话创建人 | 支持持续协作 | 2026-06-04 | R-0630 | Harness CICD 流水线节点会话不可直接继续 |
+| US-005-003 | 作为对话创建人，我希望继续本人创建的手工会话，以便围绕同一上下文持续推进。 | 对话创建人 | 支持持续协作 | 2026-06-04 | R-0630 | Harness CICD 流水线 Agent 任务会话不可直接继续 |
 | US-005-004 | 作为对话创建人，我希望回答 Agent 询问，以便会话继续运行。 | 对话创建人 | 不中断会话 | 2026-06-04 | R-0630 | 支持选项型和开放式 |
 | US-005-005 | 作为平台后端，我希望每次输入固定 Harness 快照后调用 agent core，以便运行可追踪。 | AgentSpace 后端 | 保证版本一致和审计 | 2026-06-04 | R-0630 | 敏感值只保存引用 |
 | US-005-006 | 作为团队成员，我希望看到手工 Agent 会话关键状态和错误，以便理解当前进度。 | 团队成员 | 提升运行可理解性 | 2026-06-04 | R-0630 | 不含 HarnessPipelineRun 图 |
@@ -70,19 +73,23 @@
 | UC-005-006 | US-005-009 | 执行同步 Hook | Hook Engine、AgentSpace 后端 | 命中会话开始、Tool 调用前或对象写入前事件 | 1. 匹配当前快照中的 Hook。<br>2. 按优先级计算条件。<br>3. 执行注入、校验、阻止、确认或 Skill 动作。<br>4. 返回继续、阻止或等待确认决定。 | 主动作按 Hook 决定继续或暂停 |
 | UC-005-007 | US-005-009 | 执行异步 Hook | Hook Engine、AgentSpace 后端 | 命中 Tool 调用后、对象写入后、会话完成或失败事件 | 1. 保存主事件。<br>2. 异步创建 HookExecution。<br>3. 执行通知、审计或 Skill。<br>4. 保存结果。 | Hook 失败被记录，但不回滚已完成主动作 |
 | UC-005-008 | US-005-007、US-005-008 | 输入框结构化选择 | 团队成员、对话创建人 | R-0730 输入增强启用 | 1. `/` 展示可用 Agent 功能。<br>2. `@` 搜索知识文件。<br>3. 用户选择后保存结构化引用。<br>4. 后端提交前重新校验。 | 有效选择进入本轮快照 |
+| UC-005-009 | US-005-010 | 从开始作业入口选择 Harness CICD 流水线 | 团队成员、AgentSpace 前端、F-008 后端 | 用户有开始作业权限；存在已发布且可启动的 Harness CICD 流水线 | 1. 用户进入新建 Agent 会话处的开始作业入口。<br>2. 输入任务说明。<br>3. 将执行目标从 Agent 切换为 Harness CICD 流水线。<br>4. 选择已发布流水线和可选知识域。<br>5. 前端调用 F-008 创建 HarnessPipelineTask。 | 系统进入 Harness CICD 流水线任务运行；不创建 `source=manual` 的 AgentSession |
 
 ### 业务规则
 
-- 会话入口：
-  - 创建者、管理员和团队成员可以新建手工 Agent 会话；访客不可创建。
-  - 手工 Agent 会话入口只提供“默认 Agent / 已发布 Agent”选择，不提供 Harness CICD 流水线选择。
+- 开始作业入口：
+  - 创建者、管理员和团队成员可以在新建 Agent 会话处使用统一开始作业入口；访客不可提交。
+  - 执行目标包含“Agent”和“Harness CICD 流水线”。默认目标为 Agent，以保证零配置空间可直接开始作业。
+  - 选择 Agent 时创建 `source=manual` 的 AgentSession，本分支由 F-005 负责。
+  - 选择 Harness CICD 流水线时必须选择一个已发布且可启动的流水线；前端将任务说明、pipelineId、`knowledgeDomainIds` 和幂等键提交给 F-008 创建 HarnessPipelineTask。
+  - 选择 Harness CICD 流水线不会创建手工 AgentSession；后续只有流水线 Agent 任务运行时才由 F-008 创建 `source=harness_pipeline_node` 的 AgentSession。
   - 未选择 Agent 时使用空间默认 Agent；空间未指定默认 Agent 时使用平台默认 Agent。
   - R-0630 提供独立的可选知识域选择器，请求保存 `knowledgeDomainIds`；它不依赖 R-0730 的 `@` 文件引用。
   - R-0730 的 `/` 用于文本输入中选择本轮 Agent 功能，不替代 Agent 选择器。
 - 会话与输入：
   - 一个 AgentSession 可以包含多轮用户输入。
   - 手工创建的 AgentSession 来源为 `manual`。
-  - Harness CICD 流水线节点自动创建的 AgentSession 来源为 `harness_pipeline_node`，由 F-008 创建，不允许从 F-005 入口继续、改名或取消。
+  - Harness CICD 流水线 Agent 任务自动创建的 AgentSession 来源为 `harness_pipeline_node`，由 F-008 创建，不允许从 F-005 入口继续、改名或取消。
   - 首版只有会话创建人可以继续输入、回答询问和修改名称。
   - 继续输入仅允许 `source=manual` 的会话处于完成静止态或异常静止态且存在 conversation ID。
   - 用户输入和开放式回答必须为非空文本。
@@ -90,7 +97,7 @@
 - Harness 快照：
   - 每轮指令和开放式回答生成独立 Harness 快照。
   - 快照固定解析后的空间级和命中知识域 AGENT.md、选中 Agent、相关 Skill、Tool、Hook 版本和环境变量引用。
-  - 手工 Agent 会话快照不固定 Harness CICD 流水线定义；Harness CICD 流水线节点会话的 Harness CICD 流水线版本关系由 F-008 维护。
+  - 手工 Agent 会话快照不固定 Harness CICD 流水线定义；Harness CICD 流水线 Agent 任务会话的流水线版本关系由 F-008 维护。
   - 命中知识域由请求中的 `knowledgeDomainIds`、选中 Agent 声明的知识域及 R-0730 `@` 文件所属知识域取并集后去重，系统不通过自然语言猜测知识域。
   - 零配置空间的快照使用平台默认 Agent，其余资源集合为空。
   - 敏感环境变量只保存安全引用。
@@ -139,8 +146,10 @@
 
 ### R-0630 正常路径
 
+- 用户可以在新建 Agent 会话处的开始作业入口输入任务，并在 Agent 与 Harness CICD 流水线之间选择执行目标。
 - 零配置空间可以使用平台默认 Agent 创建手工 Agent 会话。
 - 用户可以通过 Agent 选择器选择空间默认 Agent 或其他已发布 Agent。
+- 用户选择已发布 Harness CICD 流水线后，前端调用 F-008 创建 HarnessPipelineTask，不创建 `source=manual` 的 AgentSession。
 - 用户可以在 R-0630 通过独立选择器选择零个或多个可读知识域，快照不加载未选择且未被 Agent 声明的知识域。
 - 创建手工会话和继续输入时生成包含 AGENT.md、Agent、Skill、Tool、Hook 和环境变量引用的快照。
 - 会话名称可以自动生成和由创建人修改。
@@ -153,15 +162,18 @@
 ### R-0630 边界场景
 
 - 未选择 Agent 时，系统按空间默认 Agent、平台默认 Agent 顺序回退。
+- 开始作业入口默认选中 Agent；空间没有任何已发布 Harness CICD 流水线时，不展示可选流水线或展示不可用空态。
 - 会话开始后空间发布新 Harness 版本，当前会话和轮次继续使用原快照。
+- Harness CICD 流水线任务启动后，用户回到 F-008 任务详情处理 Agent 任务审阅、取消和重试。
 - Hook 等待确认映射为会话待输入，并展示等待原因。
 - Hook 确认使用统一确认记录、幂等提交、超时和恢复机制。
 - 异步 Hook 失败不回滚主动作。
-- Harness CICD 流水线节点自动创建的 Agent 会话不能从 F-005 入口继续、改名或取消。
+- Harness CICD 流水线 Agent 任务自动创建的 Agent 会话不能从 F-005 入口继续、改名或取消。
 
 ### R-0630 异常场景
 
 - 选择已停用或依赖失效的 Agent 时，系统阻止会话创建。
+- 选择已停用、依赖失效或无权访问的 Harness CICD 流水线时，入口保留任务说明并提示重新选择。
 - Harness 快照生成失败时，不调用 agent core。
 - Hook 阻止会话时，系统不执行主动作并展示原因。
 - Tool 调用前 Hook 未明确允许高风险动作时，系统不执行该 Tool 调用。
@@ -170,7 +182,7 @@
 
 ### R-0630 权限场景
 
-- 访客不能创建 Agent 会话。
+- 访客不能提交开始作业，既不能创建 Agent 会话，也不能启动 Harness CICD 流水线任务。
 - 非会话创建人不能继续输入、回答询问或修改名称。
 - 用户不能直接操作 `source=harness_pipeline_node` 的 Agent 会话运行控制。
 - Hook 不能绕过当前用户、空间和 Tool 权限。
@@ -189,14 +201,21 @@
 ### 是否需要刷新
 
 - 结论：是
-- 理由：R-0630 保留手工 Agent 会话入口、Agent 选择、知识域选择、询问回答和 Hook 决定展示；Harness CICD 流水线入口、Run 图和节点确认移交 F-008。
+- 理由：R-0630 将新建 Agent 会话处调整为统一开始作业入口，需要同时承载 Agent 目标选择和 Harness CICD 流水线目标选择；Run 图和 Agent 任务审阅仍移交 F-008。
 
 ### 页面与交互
 
-- 新建 Agent 会话主界面提供 Agent 选择器：
+- 新建 Agent 会话主界面提供开始作业入口：
+  - 顶部展示执行目标选择：Agent / Harness CICD 流水线。
+  - 默认目标为 Agent，保持零配置开始作业路径最短。
+  - 输入框文案统一为任务说明；提交按钮根据目标显示“开始 Agent 会话”或“运行流水线”。
+- Agent 目标：
   - 默认展示空间默认 Agent 或平台默认 Agent。
   - 可切换其他已发布 Agent。
-  - 不展示 Harness CICD 流水线选择；Harness CICD 流水线从 F-008 Harness CICD 流水线任务入口启动。
+- Harness CICD 流水线目标：
+  - 展示 F-008 返回的可启动已发布流水线、依赖状态和输入摘要。
+  - 从 Harness CICD 流水线配置完成页点击“运行流水线”时，跳转到本入口并预选对应流水线。
+  - 提交后进入 F-008 Harness CICD 流水线任务详情页。
 - 会话详情：
   - 展示会话状态、当前 Agent、Harness 快照版本。
   - 待输入区分 Agent 询问和 Hook 人工确认。
@@ -209,7 +228,7 @@
 - 会话状态：运行中、待输入、完成静止态、异常静止态。
 - Hook 状态：待执行、运行中、允许、阻止、等待确认、成功、失败、跳过。
 - 零配置提示：`当前使用平台默认 Agent`。
-- Harness CICD 流水线来源提示：`该 Agent 会话由 Harness CICD 流水线节点自动创建，请回到 Harness CICD 流水线任务处理流水线操作。`
+- Harness CICD 流水线来源提示：`该 Agent 会话由 Harness CICD 流水线 Agent 任务自动创建，请回到 Harness CICD 流水线任务页处理操作。`
 - Hook 阻止提示：`操作被 Hook“{name}”阻止：{reason}`。
 
 ## 前端设计
@@ -217,21 +236,24 @@
 ### 是否需要刷新
 
 - 结论：是
-- 理由：需要手工 Agent 会话入口、Agent 选择器、知识域选择、确认控件、Hook 决定和 AgentSession 新接口；移除 Harness CICD 流水线运行组件依赖。
+- 理由：需要统一开始作业入口、目标选择器、Agent 选择器、Harness CICD 流水线选择器、知识域选择、确认控件、Hook 决定和 AgentSession 新接口；Harness CICD 流水线运行组件仍由 F-008 负责。
 
 ### 页面、组件与状态
 
+- `StartWorkTargetSelector`：在 Agent 与 Harness CICD 流水线之间切换执行目标。
 - `AgentPicker`：选择默认 Agent、空间默认 Agent 或已发布 Agent。
+- `HarnessPipelineTargetPicker`：查询并选择 F-008 提供的可启动已发布流水线。
 - `KnowledgeDomainPicker`：R-0630 选择本轮知识域并保存 `knowledgeDomainIds`。
 - `AgentSessionLauncher`、`ConversationInputBox`、`ConversationTitleEditor`。
 - `AgentQuestionCard`、`RuntimeConfirmationCard`、`HookDecisionCard`。
-- `RuntimeStatus`、`RuntimeErrorBanner`、`HarnessPipelineNodeSourceBanner`。
+- `RuntimeStatus`、`RuntimeErrorBanner`、`HarnessPipelineAgentTaskSourceBanner`。
 - R-0730：`AgentFunctionSlashMenu`、`KnowledgeFileMentionMenu`、`InputReferenceChip`。
 - 状态保存会话、轮次、Agent、快照、HookExecution、询问和确认草稿。
 
 ### 接口依赖与异常处理
 
 - 查询可用 Agent 并创建手工 Agent 会话。
+- 查询 F-008 可启动 Harness CICD 流水线；当目标为流水线时调用 F-008 `POST /team-spaces/{spaceId}/harness-pipeline-tasks`。
 - 继续手工会话、提交 Agent 询问回答和修改会话名称。
 - 查询 HookExecution 状态并提交统一运行确认。
 - R-0730 查询功能目录和知识文件。
@@ -244,13 +266,14 @@
 ### 是否需要刷新
 
 - 结论：是
-- 理由：需要 AgentSession 数据模型、手工会话接口、来源字段、Hook Engine 联动和 agent core 前置事件协议。
+- 理由：需要 AgentSession 数据模型、手工会话接口、来源字段、统一开始作业目标路由、Hook Engine 联动和 agent core 前置事件协议。
 
 ### 接口与数据
 
 - 核心服务：
   - `AgentSessionService`：创建手工会话、继续输入和维护会话状态。
   - `AgentSelectionService`：解析默认 Agent、空间默认 Agent 或指定 Agent。
+  - `StartWorkTargetService`：校验开始作业目标，并在 Harness CICD 流水线目标下转交 F-008。
   - `HarnessSnapshotService`：生成手工 Agent 会话快照。
   - `HookEngine`：匹配事件并执行同步或异步 Hook。
   - `AgentCoreAdapter`：执行手工 Agent 会话、接收 Agent 内部 Tool 调用和对象写入前置事件。
@@ -268,6 +291,8 @@
 - 建议接口：
   - `GET /team-spaces/{spaceId}/agents`
   - `POST /team-spaces/{spaceId}/agent-sessions`
+  - F-008：`GET /team-spaces/{spaceId}/harness-pipelines?startable=true`
+  - F-008：`POST /team-spaces/{spaceId}/harness-pipeline-tasks`
   - `POST /team-spaces/{spaceId}/agent-sessions/{sessionId}/turns`
   - `POST /team-spaces/{spaceId}/agent-sessions/{sessionId}/answers`
   - `PATCH /team-spaces/{spaceId}/agent-sessions/{sessionId}/title`
@@ -278,6 +303,7 @@
 
 - 所有 Agent、Skill、Tool、Hook 和环境变量依赖必须来自同一租户与团队空间的已发布版本。
 - 手工 Agent 会话创建前必须先保存 AgentSession、AgentSessionTurn 和 HarnessSnapshot，再调用 agent core。
+- 统一开始作业入口仅负责路由目标；目标为 Harness CICD 流水线时，F-005 不保存手工会话记录，由 F-008 保存 HarnessPipelineTask 和 HarnessPipelineRun。
 - `source=harness_pipeline_node` 的 AgentSession 只能由 F-008 创建，本功能接口不得创建该来源会话。
 - Tool 调用和对象写入前，agent core 必须通过可等待的事件协议获取 Hook 决定。
 - Hook 状态迁移使用持久化事件和幂等键，服务重启后可恢复。
@@ -291,8 +317,8 @@
 
 | 角色 | 结论 | 说明 |
 | --- | --- | --- |
-| 产品 | 待确认 | 需确认手工会话入口文案、Harness CICD 流水线来源只读提示和会话名称规则。 |
-| UI | 待确认 | 需输出 Agent 选择、询问回答、Hook 决定和 Harness CICD 流水线来源提示交互稿。 |
-| 前端 | 待确认 | 需确认 AgentSession 接口、事件订阅、来源字段和只读控制。 |
+| 产品 | 待确认 | 需确认开始作业入口文案、默认目标、Harness CICD 流水线来源只读提示和会话名称规则。 |
+| UI | 待确认 | 需输出执行目标选择、Agent 选择、Harness CICD 流水线选择、询问回答、Hook 决定和来源提示交互稿。 |
+| 前端 | 待确认 | 需确认 AgentSession 接口、F-008 流水线启动接口、事件订阅、来源字段和只读控制。 |
 | 后端 | 待确认 | 需确认 agent core 会话协议、Hook 前置事件和 Tool 适配契约。 |
 | 测试 | 待确认 | 需按 TC-005 覆盖零配置、手工会话、继续、询问、Hook、来源限制和权限。 |
