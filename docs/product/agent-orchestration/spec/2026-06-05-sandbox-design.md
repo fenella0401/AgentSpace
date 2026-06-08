@@ -8,13 +8,13 @@
 
 ## 0. 总览
 
-两种场景触发沙箱，共用同一套底层模型（§1），区别在寻址键、创建时机、回收策略：
+两种场景触发沙箱，共用同一套底层模型（§1），区别在沙箱归属、创建时机、回收策略：
 
 | 维度 | 工作流场景（§2） | 聊天场景（§3） |
 |---|---|---|
 | 触发 | Agent-Management 组装 AgentFlow → `POST /runs` | 用户在聊天页发消息，不经工作流 |
 | 任务结构 | 预定义 DAG，多 step | 无 DAG，连续对话 |
-| 沙箱寻址键 | `runId`（run 级） | `conversationId`（会话级） |
+| 沙箱归属（Orchestration 持有映射） | run ↔ sandboxId | conversation ↔ sandboxId |
 | 沙箱触发 | run 启动即创建 | 惰性——仅当某轮需要执行时 |
 | 生命周期 | 随 run 常驻，终态销毁 | 四态分层 NONE→WARM→FROZEN→RECLAIMED |
 | 复杂任务承载 | 本身就是 | 派生工作流 run 去跑 |
@@ -92,10 +92,10 @@ Sandbox（run 级常驻，文件共享）
 ### 2.2 创建
 
 - **触发时机**：run 内**第一个 step** 启动其首个 attempt 时；
-- **find-or-create 键**：按 **run（workspaceRef）** 寻址，后续 step 命中同一沙箱，首个 step 未命中则创建；
+- **创建与复用**：首个 step 触发创建沙箱，Agent Core 返回 `sandboxId`，Orchestration 记下 run ↔ sandboxId 映射；后续 step 的 attempt 带上该 `sandboxId`，命中同一沙箱；
 - **创建动作**：分配运行环境 → 挂载 run 级 workspace 卷 → 按 `RepoRef` clone/checkout 代码仓 → 注入短期凭证（冷启 60s 来源）。
 
-> 编排层视角：不显式"创建沙箱"，只发 `StartAttempt`（带 `workspaceRef`），由 Agent Core 内部 find-or-create。契约不变、不新增 `sandboxRef` 入参。
+> 编排层视角：`StartAttempt` 带 `sandboxId`（首个 attempt 为空表示新建，Agent Core 在响应/事件中回报新建的 `sandboxId`；后续带已知 `sandboxId` 复用）。Orchestration 持有映射并负责复用判定，Agent Core 不感知 run/会话语义。
 
 ### 2.3 常驻（贯穿整个 run）
 
@@ -131,7 +131,7 @@ run 进入终态时销毁：
 
 ### 2.5 异常与超时
 
-- **沙箱意外死亡**（节点故障/OOM）：in-flight attempt 失败，编排层按重试策略处理；重试时 Agent Core 重新 find-or-create 沙箱并 `--resume` 恢复对话，文件状态依赖 workspace 卷持久性；
+- **沙箱意外死亡**（节点故障/OOM）：in-flight attempt 失败，编排层按重试策略处理；原 `sandboxId` 失效，重试时新建沙箱（得到新 `sandboxId`）并 `--resume` 恢复对话，文件状态依赖 workspace 卷持久性；
 - **run 级硬超时 / watchdog**：编排层判超时后取消 run，触发 §2.4 销毁。
 
 ### 2.6 step↔session 映射与文件持久性
@@ -148,11 +148,11 @@ run 进入终态时销毁：
 
 聊天任务有三个特征，决定它**不能套用 workflow run 模型**：无预定义 DAG（一句话是一个意图）、连续对话（会追问改需求）、简繁混杂（「看下这函数」和「重构整个模块」走同一输入框）。硬把每句话包成单 step 的 AgentFlow 很别扭。所以聊天需要一条**独立的轻量执行路径**。
 
-### 3.1 沙箱按会话寻址，惰性创建、四态分层
+### 3.1 沙箱按会话绑定，惰性创建、四态分层
 
 两条主线：
 
-**(A) 沙箱按会话（conversation）寻址，不按"任务"。** 一个聊天窗口的多轮天然共享上下文和文件，所以一个会话对应一个沙箱、一个持续 session。复用 §2 的常驻思想，寻址键从 `runId` 换成 `conversationId`。
+**(A) 沙箱按会话（conversation）绑定，不按"任务"。** 一个聊天窗口的多轮天然共享上下文和文件，所以一个会话对应一个沙箱、一个持续 session。复用 §2 的常驻思想——同样由 Orchestration 持有 conversation ↔ sandboxId 映射，首轮需执行时创建、后续轮凭 `sandboxId` 复用。
 
 **(B) 沙箱惰性创建 + 四态分层。** 大规模下绝大多数轮次（纯问答）不碰文件、不调工具，**不该占用任何沙箱**。沙箱只在真正需要执行时才 provision，空闲后逐级回收。这是资源能否撑住规模的关键。
 
@@ -267,7 +267,7 @@ run 进入终态时销毁：
 
 | 能力 | 类别 | 说明 |
 |---|---|---|
-| 沙箱 find-or-create（按键寻址） | 执行 | 按 `runId`（工作流）/ `conversationId`（聊天）find-or-create，命中复用、未命中创建 |
+| 沙箱创建 + 按 ID 复用 | 执行 | 创建沙箱并返回 `sandboxId`；后续凭 `sandboxId` 复用同一沙箱。Agent Core 无需理解 run/会话语义，run/会话 ↔ sandboxId 的映射由 Orchestration 持有 |
 | 沙箱常驻与多 session | 执行 | 单沙箱承载多 session，session 间文件共享、对话上下文隔离 |
 | 进程可死 + 对话恢复 | 执行 | 对话上下文落盘（键=sessionRef），进程退出不丢，`--resume` 重载续聊 |
 | 按需装配 skill/MCP/知识库 | 执行 | 按引用拉取装配；凭证最小权限注入、用后回收 |
@@ -308,13 +308,12 @@ run 进入终态时销毁：
 | 资源指标可观测 | 资源 | 上报 token/成本/耗时/资源占用等指标，供成本归属、配额、告警 |
 | 镜像与运行时治理 | 资源 | 执行环境来源可治理、可复现、可审计 |
 | MCP server 复用 | 执行 | 相邻 session 同引用复用已启动 MCP server，避免反复启停 |
-| sandboxRef 回报 | 可观测 | 事件中回报实际 `sandboxRef`（与 sessionRef 平行），仅做排障，不作入参 |
 
-> 当聊天页排期确定时，聊天类各项应整体提级（无沙箱执行/预判/四态流转属聊天的 P0~P1）；资源指标、镜像治理、MCP 复用、sandboxRef 回报为长期优化，可继续保持 P2。
+> 当聊天页排期确定时，聊天类各项应整体提级（无沙箱执行/预判/四态流转属聊天的 P0~P1）；资源指标、镜像治理、MCP 复用为长期优化，可继续保持 P2。
 
 ### 5.4 编排层（Agent-Orchestration）边界
 
-- **工作流场景**：全程经编排层，沿用现有 run/step/attempt 状态机与 StartAttempt 契约（`workspaceRef + resumeFromSessionRef`，不加 sandboxRef）；
+- **工作流场景**：全程经编排层；StartAttempt 契约为 `workspaceRef + resumeFromSessionRef + sandboxId`（`sandboxId` 首个 attempt 为空、由 Agent Core 回报后 Orchestration 持有并在后续 attempt 回传）；
 - **聊天快路径**：建议**直连 Agent Core 会话执行接口，不经编排层**，避免轻量交互被编排开销拖累；
 - **聊天慢路径**：派生 run 后回到编排层标准流程。
 
@@ -336,7 +335,7 @@ run 进入终态时销毁：
 | 2 | 工作流冻结的边界 | 挂起即冻结已定；待定：冻结期间是否继续 heartbeat（影响 watchdog 判活）、解冻唤醒延迟上限、跨天挂起的卷保留与成本归属 |
 | 3 | 预判与护栏阈值 | 聊天第一层意图信号集；第二层护栏各阈值（N/T/M）的实测标定与误判回退 |
 | 4 | FROZEN 实现形态 | 容器暂停 vs 卷快照 vs CRIU checkpoint，取决于执行后端能力 |
-| 5 | 可观测：sandboxRef 回报 | 建议 Agent Core 在事件中回报实际使用的 `sandboxRef`（与 `sessionRef` 平行），编排层仅存做排障用，不作为入参 |
+| 5 | sandboxId 回报时机 | sandboxId 已定为 StartAttempt 契约字段（Orchestration 持有映射）；待定：新建沙箱的 sandboxId 是在 StartAttempt 响应里同步返回，还是经事件异步回报，以及沙箱被回收/重建后映射的更新时机 |
 | 6 | 并发控制 | 工作流并行 DAG 下同沙箱多 step 并发写 workspace 的隔离/加锁；聊天单会话是否允许并发执行轮（建议串行）；多设备/多标签页打开同一会话的处理 |
 | 7 | MCP server 复用的失效与回收 | 跨 session 复用 MCP server 的健康检查、配置变更失效、沙箱结束统一回收 |
 | 8 | 聊天快路径 API 边界 | 直连 Agent Core 的会话执行接口定义；与编排层职责切分 |
