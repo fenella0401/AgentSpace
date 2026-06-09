@@ -37,7 +37,7 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收 se
 │                                                                     │
 │  ┌─ Workflow ─────────────┐    ┌─ 通用任务 ───────────┐            │
 │  │                        │    │                      │            │
-│  │  step DAG              │    │  直接触发执行          │            │
+│  │  step DAG              │    │  无需模板，即席触发     │            │
 │  │  run/step/attempt 状态机│    │                      │            │
 │  │  requiresConfirmation   │    │                      │            │
 │  │                        │    │                      │            │
