@@ -980,7 +980,7 @@ Run suspended
 
 ### 8.8 对话生命周期与 suspend-resume 续聊
 
-> 沙箱（Sandbox）的生命周期——何时常驻、何时销毁、step↔session 映射、skill/MCP 如何加载，以及工作流 / 聊天两种触发场景下的用法——见独立文档《[沙箱设计：生命周期、工作流与聊天场景](2026-06-05-sandbox-design.md)》。结论：工作流场景沙箱按 **run 级常驻**，每个 step 是沙箱内的一个 session，文件共享；本节的"进程可死 + resume 重载"在该常驻沙箱内发生。
+> Session 与沙箱的设计——Orchestration 如何管理 session（每个 step = 一个 session）、Agent Core 如何在 session 内自行管理沙箱、工作流 / 聊天两种场景下的用法——见独立文档《[沙箱设计：生命周期、工作流与聊天场景](2026-06-05-sandbox-design.md)》。核心结论：**Orchestration 只感知 session，不感知沙箱；沙箱是 Agent Core 内部领域。** 本节的"进程可死 + resume 重载"对编排层透明。
 
 一个 step 的 Agent 执行结束后，任务轮次结束，但对话不一定结束。当 step `requiresConfirmation = true` 时，用户在 suspended 状态下可能选择"继续对话"——带着反馈让 Agent 在**原有上下文**上接着聊，而不是从头开始。为此需要把**进程生命周期**和**对话上下文生命周期**拆开。
 
