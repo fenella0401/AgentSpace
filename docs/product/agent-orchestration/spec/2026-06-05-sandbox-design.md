@@ -30,6 +30,92 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收 se
 | 事件回调 → 外部 | 辅助 | 生命周期事件主动推送 |
 | `DELETE /sessions/{id}` | 辅助 | 销毁 session |
 
+### 架构
+
+```text
+┌─ Agent Orchestration（编排层）─┐
+│                                │
+│  · 组装 skill/MCP 列表          │
+│  · 持有 sessionKey → sessionId   │
+│  · 渲染 prompt                  │
+│  · 调度：何时创建/续聊/销毁      │
+│  · 转任务判定（审查/追踪）       │
+│                                │
+└────────────┬───────────────────┘
+             │  POST /sessions（skill/MCP/repo/modelRef/configKey/executorType）
+             │  GET /sessions/{id}/chat（prompt, resumeFromSessionRef）
+             │  GET /sessions/{id}
+             │  DELETE /sessions/{id}
+             │  ← 事件回调（session.created / failed / heartbeat）
+             ▼
+┌─ Agent Core（运行时层）────────┐
+│                                │
+│  · session 生命周期管理         │
+│  · 沙箱创建/冻结/解冻/回收      │
+│  ┌──────────────────────────┐  │
+│  │ 沙箱（内部，编排层不可见） │  │
+│  │  · 代码 Agent（claude-code │  │
+│  │    open-code ...）        │  │
+│  │  · 装配的 skill / MCP     │  │
+│  │  · clone 的代码仓         │  │
+│  │  · workspace 卷           │  │
+│  └──────────────────────────┘  │
+│                                │
+│  · 对话隔离 / 文件隔离 / 进程隔离│
+│  · 网络 egress 管控 / 工具 allowlist │
+│  · 凭证注入与回收              │
+│  · 事件流（SSE）+ 回调上报     │
+│                                │
+└────────────────────────────────┘
+```
+
+### 时序
+
+```text
+编排层                           Agent Core
+  │                                  │
+  │  POST /sessions                  │
+  │  (sessionKey, skillRefs,         │
+  │   mcpRefs, repo, modelRef,       │
+  │   contextRef, configKey,         │
+  │   executorType)                  │
+  │─────────────────────────────────►│
+  │                                  │  创建沙箱、装配 skill/MCP
+  │                                  │  clone repo、注入上下文与凭证
+  │                                  │  ← session.created 回调
+  │  { sessionId, chatUrl }          │
+  │◄─────────────────────────────────│
+  │                                  │
+  │  GET /sessions/{id}/chat         │
+  │  (prompt)                        │
+  │─────────────────────────────────►│
+  │                                  │  启动代码 Agent
+  │  SSE stream:                     │
+  │   event: thinking                │
+  │   event: tool_use                │
+  │   event: tool_result             │
+  │   event: message                 │
+  │   event: session.completed       │
+  │   (summary, commitSha,           │
+  │    artifactRefs, sessionRef)     │
+  │◄─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│
+  │                                  │
+  │  ... 用户续聊 ...                 │
+  │  GET /sessions/{id}/chat         │
+  │  (prompt, resumeFromSessionRef)  │
+  │─────────────────────────────────►│
+  │                                  │  --resume 恢复上下文，继续执行
+  │  SSE stream: ...                 │
+  │◄─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│
+  │                                  │
+  │  ... 不再需要 ...                 │
+  │  DELETE /sessions/{id}           │
+  │─────────────────────────────────►│
+  │                                  │  回收沙箱、凭证、清理
+  │  200                             │
+  │◄─────────────────────────────────│
+```
+
 ---
 
 ## 1. 核心接口一：POST /sessions（创建会话）
