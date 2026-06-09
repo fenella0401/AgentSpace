@@ -6,6 +6,10 @@
 
 ## 0. 总览
 
+Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收一个 session 的配置，在隔离环境里跑 Agent，把执行过程用 SSE 流式吐出来。**
+
+### 接口
+
 | 接口 | 定位 | 说明 |
 |---|---|---|
 | `POST /sessions` | **核心** | 创建会话，传入 skill/MCP/知识库/代码仓/contextRef，返回 `sessionId` + SSE 地址 |
@@ -13,6 +17,18 @@
 | `GET /sessions/{id}` | 辅助 | 查询 session 状态，供外部轮询判活 |
 | 事件回调 → 外部 | 辅助 | 生命周期事件主动推送 |
 | `DELETE /sessions/{id}` | 辅助 | 销毁 session |
+
+### Agent Core 需具备的核心能力
+
+**对话与执行**：接收 prompt，在沙箱内启动代码 Agent（支持多种 executorType，如 Claude Code），流式返回执行事件；对话上下文持久化，进程可死、重连可续。
+
+**隔离**：每个 session 的对话、文件、进程、网络相互隔离。跨 session 的文件传递只通过代码仓 commit/checkout。
+
+**安全**：网络默认最小出网、工具 allowlist、文件只能在允许路径内访问、危险操作拦截上报。
+
+**环境准备**：按 session 配置拉取装配 skill 和 MCP server、挂载知识库、注入项目上下文（agents.md）、按需 clone 代码仓、注入短期凭证。代码仓 clone 时机由 Agent Core 自定。
+
+**资源管理**：沙箱对编排层透明——创建、冻结、解冻、回收全由 Agent Core 内部决定。session 可施加资源配额，空闲时冻结释放算力。
 
 ---
 
