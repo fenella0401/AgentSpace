@@ -43,6 +43,7 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收一
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
 | `sessionKey` | string | 是 | 外部侧的 session 标识，供外部映射 |
+| `configKey` | string | 否 | 配置缓存键。相同 `configKey` 的 session 配置相同（skill/MCP/知识库/repo/executorType 一致），Agent Core 可复用已缓存的环境模板，跳过重复准备 |
 | `skillSnapshotRefs` | string[] | 是 | Skill 快照引用列表（编排层已按 agent 组装好） |
 | `mcpSnapshotRefs` | string[] | 是 | MCP Server 快照引用列表（编排层已按 agent 组装好） |
 | `knowledgeBaseRefs` | string[] | 否 | 知识库引用列表 |
@@ -70,6 +71,7 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收一
 | 代码仓 clone | P0 | 按 `RepoRef` clone/checkout 代码仓；clone 时机由 Agent Core 自定 |
 | 沙箱创建 | P0 | 为本 session 创建隔离沙箱（容器/进程组 + 挂载 workspace 卷），完成环境准备 |
 | 凭证注入 | P0 | 为本 session 注入短期凭证，作用域限本 session |
+| 配置缓存 | P1 | 对相同 `configKey` 的 session，缓存已就绪的环境模板（已装配的 skill/MCP、已 clone 的 repo 等），后续同配置 session 创建时跳过环境准备、快速复用 |
 | MCP server 复用 | P2 | 相邻 session 相同 MCP 快照时复用已启动进程 |
 
 ---
