@@ -48,6 +48,7 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收 se
 | `mcpSnapshotRefs` | string[] | 是 | MCP Server 快照引用列表（编排层已按 agent 组装好） |
 | `knowledgeBaseRefs` | string[] | 否 | 知识库引用列表 |
 | `contextRef` | string | 否 | 项目空间知识说明引用（如 agents.md，包含项目背景、编码规范、约定） |
+| `modelRef` | string | 否 | 模型引用，指定本轮对话使用的模型。Agent Core 据此选择模型端点、注入对应 credential。不传则使用默认模型 |
 | `repo` | RepoRef | 否 | 代码仓引用（repoUrl / branch / commit）。不传则为无 repo 会话 |
 | `executorType` | string | 是 | 执行器类型（见 §5） |
 
@@ -249,7 +250,7 @@ SSE 之外的补充通道，主动推送生命周期事件。展示类事件（t
 | `claude-code` | Anthropic Claude Code —— CLI 形态的代码 Agent，在沙箱内以 `claude` 命令执行，支持文件读写、命令执行、git 操作 |
 | （后续扩展） | 如 open-code、aider、自研 agent 等，由 Agent Core 按 executorType 路由到对应执行器 |
 
-Agent Core 在 session 初始化时，根据 `executorType` 选择对应的执行器实现。不同执行器的 skill/MCP 装配方式、prompt 格式、事件协议由 Agent Core 内部适配，对外接口（事件流）保持统一协议。
+Agent Core 在 session 初始化时，根据 `executorType` 选择对应的执行器实现，根据 `modelRef` 选择本次使用的模型。不同执行器的 skill/MCP 装配方式、prompt 格式、事件协议由 Agent Core 内部适配，对外接口（事件流）保持统一协议。
 
 ---
 
