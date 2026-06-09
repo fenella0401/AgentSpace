@@ -33,20 +33,22 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收 se
 ### 架构
 
 ```text
-┌─ Workflow（工作流）─────────────────────────────────────────────────┐
+┌─ Agent Orchestration（编排层）───────────────────────────────────────┐
 │                                                                     │
-│  step → step → step（DAG）      run / step / attempt 状态机           │
-│  requiresConfirmation 审查 gate                                     │
+│  ┌─ Workflow ─────────────┐    ┌─ 通用任务（聊天） ──┐              │
+│  │                        │    │                      │              │
+│  │  step DAG              │    │  即席对话              │              │
+│  │  run/step/attempt 状态机│    │  按需转成任务           │              │
+│  │  requiresConfirmation   │    │                      │              │
+│  │                        │    │                      │              │
+│  └───────────┬────────────┘    └──────────┬───────────┘              │
+│              │ step 就绪                    │ 需创建 session            │
+│              └──────────┬──────────────────┘                         │
+│                         ▼                                            │
+│  组装：skill / MCP 列表   渲染 prompt   持有 sessionKey ↔ sessionId    │
+│  调度：创建 / 续聊 / 销毁 session                                    │
 │                                                                     │
-└──────────────────────────┬──────────────────────────────────────────┘
-                           │  step 就绪 → 初始化 session
-                           ▼
-┌─ Agent Orchestration（编排层）────────────────────────────────────┐
-│                                                                   │
-│  组装 skill / MCP 列表    持有 sessionKey ↔ sessionId              │
-│  渲染 prompt              调度：创建 / 续聊 / 销毁 session           │
-│                                                                   │
-└──────────────────────────┬────────────────────────────────────────┘
+└───────────────────────────┬─────────────────────────────────────────┘
                            │
        POST /sessions      │      GET /sessions/{id}/chat
        GET /sessions/{id}  │      DELETE /sessions/{id}
