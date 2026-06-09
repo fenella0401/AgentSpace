@@ -363,7 +363,7 @@ session 初始化的入参决定了启动时需要加载多少东西。入参越
 |---|---|---|---|---|
 | **轻量级** | 无 `repo`、无 `contextRef`、少量 skill/MCP | 纯 LLM 推理 + 工具调用，不涉及文件系统 | 百毫秒级 | WASM 沙箱 |
 | **中等** | 无 `repo`，但需要 `contextRef`、较多 skill/MCP | 注入上下文、装配 MCP 服务，可读知识库 | 秒级 | 轻量容器 |
-| **完整** | 有 `repo`，需要 clone 代码仓 | 完整开发环境：文件系统、命令执行、git 操作 | 数十秒级 | Firecracker microVM 或等同安全级别沙箱 |
+| **完整** | 有 `repo`，需要 clone 代码仓 | 完整开发环境：文件系统、命令执行、git 操作 | 十秒级 | Firecracker microVM 或等同安全级别沙箱 |
 
 ### 6.2 沙箱技术选型（Agent Core 内部决策）
 
@@ -373,7 +373,7 @@ Agent Core 根据 session 入参选择沙箱实现，编排层不感知。当前
 |---|---|---|---|
 | **WASM** | 无 repo 的轻量 session | 进程级 | 启动极快（百毫秒）、资源开销极小。适合纯推理 + 工具调用，无需文件系统操作 |
 | **轻量容器** | 无 repo 但需上下文/知识库/MCP 的中等 session | 容器级 | 启动快（秒级），适合需文件系统挂载（知识库）但无需代码仓操作的场景 |
-| **Firecracker microVM** | 有 repo 的完整 session | 硬件虚拟化级 | 启动较慢（数十秒）、资源开销较大，但提供最高隔离级别。适合代码执行、文件操作、git 操作 |
+| **Firecracker microVM** | 有 repo 的完整 session | 硬件虚拟化级 | 启动较慢、资源开销较大，但提供最高隔离级别。适合代码执行、文件操作、git 操作 |
 
 > 场景判断完全是 Agent Core 的内部优化——编排层只传 `repo` / `contextRef` / `skillSnapshotRefs` 等字段，Agent Core 据此自动选择沙箱类型，不强求外部指定。
 
@@ -383,7 +383,7 @@ Agent Core 根据 session 入参选择沙箱实现，编排层不感知。当前
 |---|---|---|
 | WASM 轻量 session | P95 < 500ms | 纯函数级启动，预热后 < 100ms |
 | 容器中等 session | P95 < 5s | 含 MCP server 注册、知识库挂载 |
-| Firecracker 完整 session | P95 < 60s | 含代码仓 clone、完整环境装配 |
+| Firecracker 完整 session | 十秒级 | 含代码仓 clone、完整环境装配 |
 
 > 以上为能力目标，非硬性指标。具体数值由 Agent Core 实现根据实际环境调优。
 
