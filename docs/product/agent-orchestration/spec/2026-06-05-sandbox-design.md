@@ -33,6 +33,14 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收 se
 ### 架构
 
 ```text
+┌─ Workflow（工作流）─────────────────────────────────────────────────┐
+│                                                                     │
+│  step → step → step（DAG）      run / step / attempt 状态机           │
+│  requiresConfirmation 审查 gate                                     │
+│                                                                     │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │  step 就绪 → 初始化 session
+                           ▼
 ┌─ Agent Orchestration（编排层）────────────────────────────────────┐
 │                                                                   │
 │  组装 skill / MCP 列表    持有 sessionKey ↔ sessionId              │
