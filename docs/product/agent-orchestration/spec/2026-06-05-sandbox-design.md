@@ -359,13 +359,13 @@ session 初始化的入参决定了启动时需要加载多少东西。入参越
 
 ### 6.1 场景分级
 
-| 场景 | 入参特征 | 需要做的事 | 启动性能要求 |
-|---|---|---|---|
-| **轻量级** | 无 `repo`、少量 skill/MCP | 纯 LLM 推理 + 工具调用 | 百毫秒级 |
-| **中等** | 无 `repo`，有 `contextRef`、较多 skill/MCP | 注入上下文、装配 MCP 服务，可读知识库 | 秒级 |
-| **完整** | 有 `repo`，需要 clone 代码仓 | 完整开发环境：文件系统、命令执行、git 操作 | 十秒级 |
+| 场景 | 入参特征 | 需要做的事 | 启动性能要求 | 沙箱选型建议 |
+|---|---|---|---|---|
+| **轻量级** | 无 `repo`、少量 skill/MCP | 纯 LLM 推理 + 工具调用 | 百毫秒级 | WASM 沙箱或等同轻量运行时 |
+| **中等** | 无 `repo`，有 `contextRef`、较多 skill/MCP | 注入上下文、装配 MCP 服务，可读知识库 | 秒级 | 容器沙箱 |
+| **完整** | 有 `repo`，需要 clone 代码仓 | 完整开发环境：文件系统、命令执行、git 操作 | 十秒级 | Firecracker microVM 或等同安全级别沙箱 |
 
-> 场景判断是 Agent Core 的内部优化——编排层只传 `repo` / `contextRef` / `skillSnapshotRefs` 等字段，Agent Core 据此自动选择沙箱实现，编排层不感知。
+> 沙箱选型为建议方向，具体实现由 Agent Core 自行决定。编排层只传 `repo` / `contextRef` / `skillSnapshotRefs` 等字段，不感知沙箱类型。
 
 ### 6.2 与 configKey 的配合
 
