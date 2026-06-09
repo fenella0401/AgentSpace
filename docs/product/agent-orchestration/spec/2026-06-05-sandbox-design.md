@@ -32,88 +32,75 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收 se
 
 ### 架构
 
-```text
-┌─ Agent Orchestration（编排层）─┐
-│                                │
-│  · 组装 skill/MCP 列表          │
-│  · 持有 sessionKey → sessionId   │
-│  · 渲染 prompt                  │
-│  · 调度：何时创建/续聊/销毁      │
-│  · 转任务判定（审查/追踪）       │
-│                                │
-└────────────┬───────────────────┘
-             │  POST /sessions（skill/MCP/repo/modelRef/configKey/executorType）
-             │  GET /sessions/{id}/chat（prompt, resumeFromSessionRef）
-             │  GET /sessions/{id}
-             │  DELETE /sessions/{id}
-             │  ← 事件回调（session.created / failed / heartbeat）
-             ▼
-┌─ Agent Core（运行时层）────────┐
-│                                │
-│  · session 生命周期管理         │
-│  · 沙箱创建/冻结/解冻/回收      │
-│  ┌──────────────────────────┐  │
-│  │ 沙箱（内部，编排层不可见） │  │
-│  │  · 代码 Agent（claude-code │  │
-│  │    open-code ...）        │  │
-│  │  · 装配的 skill / MCP     │  │
-│  │  · clone 的代码仓         │  │
-│  │  · workspace 卷           │  │
-│  └──────────────────────────┘  │
-│                                │
-│  · 对话隔离 / 文件隔离 / 进程隔离│
-│  · 网络 egress 管控 / 工具 allowlist │
-│  · 凭证注入与回收              │
-│  · 事件流（SSE）+ 回调上报     │
-│                                │
-└────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph ORCH["Agent Orchestration（编排层）"]
+        direction TB
+        O1["组装 skill / MCP 列表"]
+        O2["持有 sessionKey ↔ sessionId"]
+        O3["渲染 prompt"]
+        O4["调度：创建 / 续聊 / 销毁"]
+        O5["转任务判定（审查 / 追踪）"]
+        O1 ~~~ O2 ~~~ O3 ~~~ O4 ~~~ O5
+    end
+
+    subgraph AC["Agent Core（运行时层）"]
+        direction TB
+        API["session 生命周期管理"]
+        SB["沙箱（编排层不可见）<br/>· 代码 Agent（claude-code ...）<br/>· 装配的 skill / MCP<br/>· clone 的代码仓<br/>· workspace 卷"]
+        SEC["隔离 & 安全<br/>· 对话/文件/进程/网络隔离<br/>· 网络 egress 管控<br/>· 工具 allowlist<br/>· 凭证注入与回收"]
+        EVENT["事件流（SSE）+ 回调上报"]
+        API --- SB --- SEC --- EVENT
+    end
+
+    ORCH -->|"POST /sessions<br/>GET /sessions/{id}/chat<br/>GET /sessions/{id}<br/>DELETE /sessions/{id}"| AC
+    AC -->|"事件回调<br/>(session.created / failed / heartbeat)"| ORCH
 ```
 
 ### 时序
 
-```text
-编排层                           Agent Core
-  │                                  │
-  │  POST /sessions                  │
-  │  (sessionKey, skillRefs,         │
-  │   mcpRefs, repo, modelRef,       │
-  │   contextRef, configKey,         │
-  │   executorType)                  │
-  │─────────────────────────────────►│
-  │                                  │  创建沙箱、装配 skill/MCP
-  │                                  │  clone repo、注入上下文与凭证
-  │                                  │  ← session.created 回调
-  │  { sessionId, chatUrl }          │
-  │◄─────────────────────────────────│
-  │                                  │
-  │  GET /sessions/{id}/chat         │
-  │  (prompt)                        │
-  │─────────────────────────────────►│
-  │                                  │  启动代码 Agent
-  │  SSE stream:                     │
-  │   event: thinking                │
-  │   event: tool_use                │
-  │   event: tool_result             │
-  │   event: message                 │
-  │   event: session.completed       │
-  │   (summary, commitSha,           │
-  │    artifactRefs, sessionRef)     │
-  │◄─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│
-  │                                  │
-  │  ... 用户续聊 ...                 │
-  │  GET /sessions/{id}/chat         │
-  │  (prompt, resumeFromSessionRef)  │
-  │─────────────────────────────────►│
-  │                                  │  --resume 恢复上下文，继续执行
-  │  SSE stream: ...                 │
-  │◄─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│
-  │                                  │
-  │  ... 不再需要 ...                 │
-  │  DELETE /sessions/{id}           │
-  │─────────────────────────────────►│
-  │                                  │  回收沙箱、凭证、清理
-  │  200                             │
-  │◄─────────────────────────────────│
+```mermaid
+sequenceDiagram
+    participant ORCH as Agent Orchestration
+    participant AC as Agent Core
+
+    Note over ORCH,AC: 创建会话
+
+    ORCH->>AC: POST /sessions<br/>(sessionKey, skillRefs, mcpRefs,<br/>repo, modelRef, contextRef,<br/>configKey, executorType)
+    activate AC
+    AC-->>ORCH: 事件回调: session.created
+    AC->>AC: 创建沙箱、装配 skill/MCP<br/>clone repo、注入上下文与凭证
+    AC-->>ORCH: { sessionId, chatUrl }
+    deactivate AC
+
+    Note over ORCH,AC: 发起对话
+
+    ORCH->>AC: GET /sessions/{id}/chat<br/>(prompt)
+    activate AC
+    AC->>AC: 启动代码 Agent
+    AC-->>ORCH: SSE: thinking
+    AC-->>ORCH: SSE: tool_use
+    AC-->>ORCH: SSE: tool_result
+    AC-->>ORCH: SSE: message
+    AC-->>ORCH: SSE: session.completed<br/>(summary, commitSha, artifactRefs, sessionRef)
+    deactivate AC
+
+    Note over ORCH,AC: 续聊
+
+    ORCH->>AC: GET /sessions/{id}/chat<br/>(prompt, resumeFromSessionRef)
+    activate AC
+    AC->>AC: --resume 恢复上下文，继续执行
+    AC-->>ORCH: SSE: ... (同上)
+    AC-->>ORCH: SSE: session.completed
+    deactivate AC
+
+    Note over ORCH,AC: 销毁
+
+    ORCH->>AC: DELETE /sessions/{id}
+    activate AC
+    AC->>AC: 回收沙箱、凭证、清理
+    AC-->>ORCH: 200
+    deactivate AC
 ```
 
 ---
