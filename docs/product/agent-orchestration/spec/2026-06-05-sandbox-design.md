@@ -32,29 +32,37 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收 se
 
 ### 架构
 
-```mermaid
-flowchart TB
-    subgraph ORCH["Agent Orchestration（编排层）"]
-        direction TB
-        O1["组装 skill / MCP 列表"]
-        O2["持有 sessionKey ↔ sessionId"]
-        O3["渲染 prompt"]
-        O4["调度：创建 / 续聊 / 销毁"]
-        O5["转任务判定（审查 / 追踪）"]
-        O1 ~~~ O2 ~~~ O3 ~~~ O4 ~~~ O5
-    end
-
-    subgraph AC["Agent Core（运行时层）"]
-        direction TB
-        API["session 生命周期管理"]
-        SB["沙箱（编排层不可见）<br/>· 代码 Agent（claude-code ...）<br/>· 装配的 skill / MCP<br/>· clone 的代码仓<br/>· workspace 卷"]
-        SEC["隔离 & 安全<br/>· 对话/文件/进程/网络隔离<br/>· 网络 egress 管控<br/>· 工具 allowlist<br/>· 凭证注入与回收"]
-        EVENT["事件流（SSE）+ 回调上报"]
-        API --- SB --- SEC --- EVENT
-    end
-
-    ORCH -->|"POST /sessions<br/>GET /sessions/{id}/chat<br/>GET /sessions/{id}<br/>DELETE /sessions/{id}"| AC
-    AC -->|"事件回调<br/>(session.created / failed / heartbeat)"| ORCH
+```text
+┌─ Agent Orchestration（编排层）────────────────────────────────────┐
+│                                                                   │
+│  组装 skill / MCP 列表    持有 sessionKey ↔ sessionId              │
+│  渲染 prompt              调度：何时创建 / 续聊 / 销毁              │
+│  转任务判定（审查 / 追踪）                                         │
+│                                                                   │
+└──────────────────────────┬────────────────────────────────────────┘
+                           │
+       POST /sessions      │      GET /sessions/{id}/chat
+       GET /sessions/{id}  │      DELETE /sessions/{id}
+                           │
+                           │  ← 事件回调（session.created / failed / heartbeat）
+                           │
+┌──────────────────────────▼────────────────────────────────────────┐
+│                    Agent Core（运行时层）                           │
+│                                                                   │
+│  session 生命周期管理                                              │
+│                                                                   │
+│  ┌─ 沙箱（编排层不可见）───────────────────────────────────────┐  │
+│  │                                                            │  │
+│  │  代码 Agent（claude-code / open-code / ...）                │  │
+│  │  装配的 skill / MCP       clone 的代码仓       workspace 卷  │  │
+│  │                                                            │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+│  对话隔离 / 文件隔离 / 进程隔离 / 网络隔离                           │
+│  网络 egress 管控 / 工具 allowlist / 凭证注入与回收                   │
+│  事件流（SSE）+ 回调上报                                           │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 ### 时序
