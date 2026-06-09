@@ -13,7 +13,6 @@
 | `GET /sessions/{id}` | 查询 session 状态 |
 | 事件回调 → Orchestration | 执行过程中的生命周期事件主动推送 |
 | `DELETE /sessions/{id}` | 销毁 session，回收沙箱 |
-| `POST /chat`（P2） | 聊天场景直连接口，不经编排层 |
 
 session 初始化时，代码仓（`RepoRef`）为可选字段——传则 Agent Core 按需 clone，不传则为无 repo 的 session。
 
@@ -184,27 +183,6 @@ SSE 之外的补充通道——Agent Core 在执行过程中，按统一协议 `
 
 ---
 
-### 接口六：POST /chat（聊天会话接口，NONE 态——无 session）
-
-优先级：**P2**
-
-聊天页直连 Agent Core 的接口，不经编排层。Agent Core 自行判断本轮是否需要沙箱内工具：
-
-- 不需要 → 直接 SSE 流式返回 LLM 输出（不创建 session，不建沙箱）；
-- 需要 → Agent Core 内部起沙箱执行，或通知编排层初始化 session（视聊天接入方式而定，见 §6#5）。
-
-**Request：**
-
-| 字段 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| `conversationId` | string | 是 | 聊天会话标识 |
-| `message` | string | 是 | 用户本轮输入 |
-| `projectContext` | object | 否 | 项目上下文（含 repo/agent/skill/mcp 引用），用于需要时初始化 session |
-
-**Response**：SSE 流式返回，事件协议与接口二一致。
-
----
-
 ## 4. 内部能力要求
 
 以下为 Agent Core 内部需具备的能力（非对外接口），按优先级分档。
@@ -222,8 +200,8 @@ SSE 之外的补充通道——Agent Core 在执行过程中，按统一协议 `
 | 资源限额 | P1 | 沙箱可施加资源配额 |
 | 容量与背压 | P1 | 容量不足时 session 创建快速拒绝 |
 | 沙箱冻结 / 解冻 | P1 | session 空闲时冻结释放算力，需要时解冻 |
-| 无沙箱对话（仅聊天） | P2 | 纯 LLM + 搜索检索不建沙箱，SSE 流式返回 |
-| 四态自动流转（仅聊天） | P2 | NONE→WARM→FROZEN→RECLAIMED 自动流转 |
+| 纯 LLM 对话（不建沙箱） | P2 | session 不指定代码仓时，Agent Core 可仅做 LLM 推理 + 搜索检索，不进沙箱，经 SSE 流式返回 |
+| 四态自动流转（仅聊天） | P2 | 无代码仓 session 的 NONE→WARM→FROZEN→RECLAIMED 自动流转 |
 | 资源指标可观测 | P2 | token/成本/耗时/资源占用上报 |
 | 镜像与运行时治理 | P2 | 执行环境可治理、可复现、可审计 |
 
@@ -245,7 +223,7 @@ SSE 之外的补充通道——Agent Core 在执行过程中，按统一协议 `
 | 1 | SSE 续聊的参数传递方式 | `resumeFromSessionRef` 是通过 SSE 建连时的 query 参数传，还是建连后首条事件传 |
 | 2 | 终态事件复用 | `session.completed` 在 SSE 和事件回调两通道都出现——两者是否需要完全一致，还是回调仅做通知 |
 | 3 | Agent Core 沙箱冻结/解冻 | Agent Core 自行决定阈值、实现形态 |
-| 4 | 聊天快路径 API 边界 | POST /chat 与编排层 session 的互操作（聊天中需要 session 时如何衔接） |
+| 4 | 聊天场景 session 创建时机 | 无代码仓的 session 是惰性创建（先 SSE 纯 LLM 对话，需要沙箱内工具时才创建 session）还是先建 session 再 SSE |
 | 5 | 跨 session 代码仓并发 | 同 repo 多 session 并行修改时的隔离/加锁策略 |
 | 6 | session 配额与并发 | 按用户/项目限制活跃 session 数量 |
 | 7 | MCP server 复用 | 跨 session 复用时的健康检查与失效回收 |
