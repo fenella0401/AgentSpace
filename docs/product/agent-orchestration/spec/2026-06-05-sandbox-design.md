@@ -8,23 +8,11 @@
 
 ## 0. 总览
 
-工作流和聊天共用同一套 session 模型：
+**编排层只看到 session。** 初始化时传入执行所需的全量配置（agent / skill / MCP 引用、代码仓、凭证），Agent Core 返回 `sessionId`，之后所有 attempt 只带 `sessionId` 和 `attemptNo`。
 
-| 维度 | 工作流场景（§2） | 聊天场景（§3） |
-|---|---|---|
-| 触发 | Agent-Management 组装 AgentFlow → `POST /runs` | 用户在聊天页发消息，不经工作流 |
-| 任务结构 | 预定义 DAG，多 step | 无 DAG，连续对话 |
-| session 粒度 | 一个 step = 一个 session | 一个 conversation = 一个 session |
-| session 映射（Orchestration 持有） | stepId ↔ sessionId | conversationId ↔ sessionId |
-| 代码仓 | 必传，Agent Core 自行决定 clone 时机 | 可选（不传则无 repo 的空 session） |
-| session 创建时机 | step 启动时创建 | 惰性——聊天需要沙箱内工具时创建 |
-| 文件传递 | 不同 session 不共享本地盘，通过代码仓 commit / StepOutput 交接 | 同左；repo 可选则无代码仓交接 |
-| 转任务 | 本身就是 | 触及审查或需正式追踪时，从聊天新建一个 session（转成任务）|
-| Orchestration 边界 | 管理 session 生命周期 + attempt 调度 | 同上；快路径不经编排层直连 Agent Core |
+沙箱——何时起、何时冻、什么形态——是 Agent Core 内部的事，编排层完全透明。
 
-一句话：**编排层管 session，Agent Core 管沙箱。工作流和聊天用一样的方式，差别只在有没有代码仓。**
-
----
+session 初始化时唯一可变的是代码仓：绑了项目则传 `RepoRef`，不绑则不传。其余字段始终一致。工作流和聊天共用这套模型，差别仅在于代码仓是必传还是可选（见 §2、§3）。
 
 ## 1. 核心模型
 
