@@ -61,9 +61,10 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收 se
 └───────────────────────────┬─────────────────────────────────────────┘
                            │
        POST /sessions      │      GET /sessions/{id}/chat
-       GET /sessions/{id}  │      DELETE /sessions/{id}
-                           │
-                           │  ← 事件回调（session.created / failed / heartbeat）
+       GET /sessions/{id}  │      POST /sessions/{id}/abort
+       DELETE /sessions/{id}│
+                           │  ← 事件回调
+                           │    (created / completed / failed / aborted / timeout / heartbeat)
                            │
 ┌──────────────────────────▼────────────────────────────────────────┐
 │                    Agent Core（运行时层）                           │
