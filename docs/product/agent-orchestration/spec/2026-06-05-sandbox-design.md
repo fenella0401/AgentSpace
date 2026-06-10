@@ -26,6 +26,7 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收 se
 |---|---|---|
 | `POST /sessions` | **核心** | 创建会话，传入 skill/MCP/知识库/代码仓/contextRef，返回 `sessionId` + chat 地址 |
 | `GET /sessions/{id}/chat` | **核心** | 对话——建连即开始/续接对话，流式返回所有执行事件 |
+| `POST /sessions/{id}/abort` | 辅助 | 中止当前对话，保留 session 可续聊 |
 | `GET /sessions/{id}` | 辅助 | 查询 session 状态，供外部轮询判活 |
 | 事件回调 → 外部 | 辅助 | 生命周期事件主动推送 |
 | `DELETE /sessions/{id}` | 辅助 | 销毁 session |
@@ -189,6 +190,8 @@ Agent Core 的**核心执行通道**。外部通过 SSE 长连接进行对话。
 | `prompt` | string | 是 | 已渲染的 prompt 文本 |
 | `resumeFromSessionRef` | string | 否 | 续聊时指向要恢复的对话上下文；为空表示新建对话 |
 
+> **单会话串行**：同一 session 同时只允许一个活跃对话连接。已有对话执行中时，新建连请求被拒绝或排队（断连重连场景下旧连接需先释放），避免同一对话上下文被并发写坏。
+
 ### 2.2 事件流
 
 统一基座字段：
@@ -233,6 +236,8 @@ Agent Core 的**核心执行通道**。外部通过 SSE 长连接进行对话。
 |---|---|---|
 | 对话执行 | P0 | 接收 prompt，启动 Agent 执行，经 SSE 流式返回所有事件 |
 | 续聊 | P0 | 断连后重连 SSE，带 `resumeFromSessionRef` 恢复对话上下文继续执行 |
+| 对话中止 | P0 | 提供 `POST /sessions/{id}/abort` 中止当前正在执行的对话（不销毁 session），停止 agent 执行、保留上下文，session 仍可续聊。幂等 |
+| 单会话串行 | P0 | 同一 session 同时只允许一个活跃对话连接，避免并发写坏对话上下文 |
 | 进程可死 + 对话恢复 | P0 | 对话上下文持久化落盘（键 = sessionRef），执行进程退出后上下文不丢。续聊时 `--resume` 重载即可恢复。外部对进程冷热无感知 |
 | 代码仓操作 | P0 | 对话过程中 agent 的代码改动经 Agent Core commit/push |
 | 治理信号上报 | P2 | 执行中上报审查规则命中 + 规模信号（工具调用数/耗时/改动范围），供外部判定转任务或提示 |
@@ -293,7 +298,10 @@ SSE 之外的补充通道，主动推送生命周期事件。展示类事件（t
 | eventType | 说明 |
 |---|---|
 | `session.created` | session 已创建 |
-| `session.failed` | session 执行失败 |
+| `session.completed` | session 执行成功 |
+| `session.failed` | session 任务失败（agent 跑完判定失败）|
+| `session.aborted` | 运行时异常（沙箱崩溃/OOM）——区别于任务失败，编排层可据此重建重试 |
+| `session.timeout` | 执行超时 |
 | `session.heartbeat` | 定期心跳（外部兜底判活） |
 
 事件基座字段同 SSE。
