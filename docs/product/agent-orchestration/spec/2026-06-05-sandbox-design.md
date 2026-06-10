@@ -151,6 +151,7 @@ sequenceDiagram
 | `contextRef` | string | 否 | 项目空间知识说明引用（如 agents.md，包含项目背景、编码规范、约定） |
 | `modelRef` | string | 否 | 模型引用，指定本轮对话使用的模型。Agent Core 据此选择模型端点、注入对应 credential。不传则使用默认模型 |
 | `repo` | RepoRef | 否 | 代码仓引用（repoUrl / branch / commit）。不传则为无 repo 会话 |
+| `envVars` | map | 否 | 环境变量，注入沙箱内执行环境（如构建/运行所需配置）。敏感值建议走凭证机制而非明文 |
 | `agentRuntime` | string | 是 | 执行器类型（见 §5） |
 
 ### 1.2 Response

@@ -58,7 +58,7 @@
 
 提供 session 生命周期接口与环境准备：
 
-- `POST /sessions` 创建会话。入参：`sessionKey`、`skillSnapshotRefs`、`mcpSnapshotRefs`、`knowledgeBaseRefs`（可选）、`contextRef`（可选）、`modelRef`（可选）、`repo`（可选）、`agentRuntime`、`configKey`（可选）。返回 `sessionId` + `chatUrl`。幂等。
+- `POST /sessions` 创建会话。入参：`sessionKey`、`skillSnapshotRefs`、`mcpSnapshotRefs`、`knowledgeBaseRefs`（可选）、`contextRef`（可选）、`modelRef`（可选）、`repo`（可选）、`envVars`（可选，环境变量）、`agentRuntime`、`configKey`（可选）。返回 `sessionId` + `chatUrl`。幂等。
 - `GET /sessions/{id}` 查询状态，返回 `status`（ACTIVE/COMPLETED/FAILED）和 `lastActiveAt`。
 - 事件回调通道，推送 session 生命周期事件：`session.created`、`session.completed`、`session.failed`（任务失败）、`session.aborted`（运行时异常：沙箱崩溃/OOM）、`session.timeout`（执行超时）、`session.heartbeat`。其中 `failed` 是任务本身失败，`aborted`/`timeout` 是运行环境异常（编排层据此区分可重试场景）。
 - `DELETE /sessions/{id}` 销毁 session，幂等。
