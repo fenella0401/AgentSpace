@@ -15,13 +15,13 @@
 
 session 初始化时，按入参装配 skill 和 MCP server、注入短期凭证；按 `contextRef` 拉取项目知识说明（如 agents.md）注入对话上下文；按 `knowledgeBaseRefs` 挂载知识库；按 `repo` clone/checkout 代码仓（clone 时机自定）。不同 session 的环境相互独立。
 
-初始化性能按入参自动分级，编排层不感知：
+初始化性能按任务类型自动分级（隔离强度看是否运行不可信代码），编排层不感知：
 
 | 场景 | 入参特征 | 启动要求 | 沙箱建议 |
 |---|---|---|---|
-| 轻量级 | 无 repo、少量 skill/MCP | 百毫秒级 | WASM 或等同 |
-| 中等 | 无 repo、有 contextRef 和较多 skill/MCP | 秒级 | 容器沙箱 |
-| 完整 | 有 repo、需 clone 代码仓 | 十秒级 | Firecracker microVM 或等同 |
+| 普通对话 | 无 repo、无外部或仅可信工具 | 百毫秒级 | 可不用沙箱（或 WASM 等轻量运行时）|
+| 中等 | 无 repo、有 contextRef 和较多 skill/MCP | 秒级 | Firecracker microVM（外部 MCP/知识库潜在不可信，需强隔离）|
+| 完整 | 有 repo、需 clone 代码仓 | 十秒级 | 容器沙箱（项目自有代码相对可信，IO/命令性能更好）|
 
 ### R2 对话
 
