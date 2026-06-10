@@ -344,7 +344,7 @@ SSE 之外的补充通道，主动推送生命周期事件。展示类事件（t
 
 ### 3.4 harness 配置同步（Agent-Management → Agent Core）
 
-优先级：**P1**
+优先级：**P0**
 
 为降低 session 初始化时逐项拉取配置的开销，Agent-Management 在 harness **发布新版本时直接推送**该版本的全套配置到 Agent Core，Agent Core 本地缓存。之后 session 初始化只需传 `harnessRef`，直接命中本地缓存，无需临时拉取 skill/MCP/知识库/上下文。
 
@@ -368,7 +368,7 @@ SSE 之外的补充通道，主动推送生命周期事件。展示类事件（t
 
 | 能力 | 优先级 | 说明 |
 |---|---|---|
-| harness 配置接收与缓存 | P1 | 接收 Agent-Management 推送的 harness 配置，按 `harnessRef` 本地缓存，供 session 初始化命中 |
+| harness 配置接收与缓存 | P0 | 接收 Agent-Management 推送的 harness 配置，按 `harnessRef` 本地缓存，供 session 初始化命中 |
 | 配置预热 | P2 | 接收后可预拉取 skill/MCP 内容、预热环境模板，进一步缩短后续 session 启动时间 |
 
 > 若 session 初始化传入的 `harnessRef` 在 Agent Core 本地未命中（同步延迟或丢失），Agent Core 应回源拉取或返回可识别错误，由编排层重试（见 §7 待确认）。
