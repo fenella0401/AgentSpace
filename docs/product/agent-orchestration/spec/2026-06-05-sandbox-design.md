@@ -53,6 +53,7 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收 se
 │    · 项目上下文（agents.md）                                           │
 │    · 代码仓（RepoRef）                                                │
 │    · 模型（modelRef）                                                  │
+│    · 环境变量（envVars）                                              │
 │    · 执行器类型（agentRuntime）                                        │
 │    · 配置缓存键（configKey）                                           │
 │    · 持有 sessionKey ↔ sessionId                                       │

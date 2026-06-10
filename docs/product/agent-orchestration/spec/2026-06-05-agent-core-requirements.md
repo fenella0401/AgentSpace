@@ -21,6 +21,7 @@
 │    · skill 列表 / MCP 列表（按 agent 组装）                            │
 │    · 知识库引用 / 项目上下文（agents.md）                              │
 │    · 代码仓（RepoRef）/ 模型（modelRef）                              │
+│    · 环境变量（envVars）                                              │
 │    · 执行器类型（agentRuntime）/ 配置缓存键（configKey）               │
 │    · 持有 sessionKey ↔ sessionId                                       │
 │    · 调度：创建 / 续聊 / 销毁 session                                   │
