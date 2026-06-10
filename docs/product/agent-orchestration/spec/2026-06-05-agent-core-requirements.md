@@ -57,9 +57,8 @@
 - `GET /sessions/{id}` 查询状态，返回 `status`（ACTIVE/COMPLETED/FAILED）和 `lastActiveAt`。
 - 事件回调通道，推送 session 生命周期事件：`session.created`、`session.completed`、`session.failed`（任务失败）、`session.aborted`（运行时异常：沙箱崩溃/OOM）、`session.timeout`（执行超时）、`session.heartbeat`。其中 `failed` 是任务本身失败，`aborted`/`timeout` 是运行环境异常（编排层据此区分可重试场景）。
 - `DELETE /sessions/{id}` 销毁 session，幂等。
-- `POST /harness/sync` 接收 Agent-Management 在 harness 发布时推送的全套配置（`harnessRef` + 该版本的 skill/MCP/知识库/上下文/模型路由），本地按 `harnessRef` 缓存。Agent-Management 直接推送、不经编排层；harness 版本不可变，可长期缓存。
 
-配置来源二选一：传 `harnessRef` 直接命中已同步的 harness 配置（整体兜底，无需逐项拉取）；或传具体 skill/MCP/知识库/上下文字段自行指定。两者同传时以具体字段为准、不混用。`harnessRef` 未命中（同步延迟或丢失）时回源拉取或返回可识别错误。
+配置来源二选一：传 `harnessRef` 直接命中已同步的 harness 配置（整体兜底，无需逐项拉取，harness 同步见 R2）；或传具体 skill/MCP/知识库/上下文字段自行指定。两者同传时以具体字段为准、不混用。`harnessRef` 未命中（同步延迟或丢失）时回源拉取或返回可识别错误。
 
 session 初始化时，按入参装配 skill 和 MCP server、注入短期凭证；按 `contextRef` 拉取项目知识说明（如 agents.md）注入对话上下文；按 `knowledgeBaseRefs` 挂载知识库；按 `repo` clone/checkout 代码仓（clone 时机自定）。不同 session 的环境相互独立。
 
@@ -71,7 +70,16 @@ session 初始化时，按入参装配 skill 和 MCP server、注入短期凭证
 | 中等 | 无 repo、有 contextRef 和较多 skill/MCP | 秒级 | Firecracker microVM（外部 MCP/知识库潜在不可信，需强隔离）|
 | 完整 | 有 repo、需 clone 代码仓 | 十秒级 | 容器沙箱（项目自有代码相对可信，IO/命令性能更好）|
 
-### R2 对话
+### R2 harness 配置同步
+
+提供 `POST /harness/sync`：接收 Agent-Management 在 harness 发布时推送的全套配置（`harnessRef` + 该版本的 skill/MCP/知识库/上下文/模型路由），本地按 `harnessRef` 缓存，供 session 初始化以 `harnessRef` 整体兜底命中，免去逐项拉取。
+
+- Agent-Management 直接推送、不经编排层；
+- harness 发布新版本时推送（事件驱动），非 session 初始化时拉取；
+- harness 版本不可变，已同步配置可长期缓存，新版本生成新 `harnessRef`；
+- session 初始化传 `harnessRef` 未命中时，回源拉取或返回可识别错误。
+
+### R3 对话
 
 提供 `GET /sessions/{id}/chat` 对话接口。建连参数：`prompt`、`resumeFromSessionRef`（可选）。按 `agentRuntime` 选择执行器启动代码 Agent，经 SSE 流式返回所有执行事件（thinking / message / tool_use / tool_result / stdout / stderr / session.completed / session.failed）。`session.completed` payload 含 summary、result、artifactRefs、commitSha、sessionRef。
 
@@ -96,18 +104,18 @@ session 初始化时，按入参装配 skill 和 MCP server、注入短期凭证
 
 ## P1 —— 规模化与安全合规所需
 
-### R3 安全管控
+### R4 安全管控
 
 - 默认最小化出网，仅放行 allowlist（模型端点、已批准 MCP server、repo 源、知识库服务），禁止任意外联；
 - 可执行的工具、命令、文件路径受策略约束，不开放任意脚本；
 - Agent 只能访问本 session 的 workspace 路径及显式挂载的只读路径，越界拒绝；
 - 命中高风险操作（修改鉴权、删除数据、变更 CI、访问生产、越权）时阻断并上报。
 
-### R4 支持多种代码 Agent 运行时
+### R5 支持多种代码 Agent 运行时
 
 支持多种 `agentRuntime`（当前需支持 `claude-code`），按 `modelRef` 选择本次模型。不同运行时的装配方式、prompt 格式、事件协议由 Agent Core 内部适配，对外 SSE 事件流保持统一协议。
 
-### R5 资源管控
+### R6 资源管控
 
 - 每个 session 可施加资源配额上限（CPU/内存/磁盘/时长），超限按策略处理；
 - 资源池不足时 session 创建快速拒绝，不长时间阻塞；
@@ -118,7 +126,7 @@ session 初始化时，按入参装配 skill 和 MCP server、注入短期凭证
 
 ## P2 —— 长期增强
 
-### R6 效率与可观测
+### R7 效率与可观测
 
 - 相邻 session 相同 MCP 快照时复用已启动的 MCP server 进程；
 - 执行中上报审查规则命中及规模信号（工具调用数、耗时、改动范围）；
