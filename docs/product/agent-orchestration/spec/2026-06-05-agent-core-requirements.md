@@ -5,6 +5,12 @@
 ## 架构
 
 ```text
+┌─ Agent-Management（业务控制面）──────────────────────────────────────┐
+│  harness 配置：agent / skill / MCP / 知识库 / 上下文 / 模型路由        │
+│  版本化管理，发布即不可变                                              │
+└───────────────────────────┬─────────────────────────────────────────┘
+                           │ harness 发布时推送配置（直连 Agent Core，不经编排层）
+                           │
 ┌─ Agent Orchestration（编排层）───────────────────────────────────────┐
 │                                                                     │
 │  ┌─ Workflow ─────────────┐    ┌─ 通用任务 ───────────┐            │
@@ -18,10 +24,9 @@
 │              └──────────┬──────────────────┘                         │
 │                         ▼                                            │
 │  组装 & 调度：                                                       │
-│    · skill 列表 / MCP 列表（按 agent 组装）                            │
-│    · 知识库引用 / 项目上下文（agents.md）                              │
-│    · 代码仓（RepoRef）/ 模型（modelRef）                              │
-│    · 环境变量（envVars）                                              │
+│    · harnessRef（整体兜底，命中已同步配置）                            │
+│    · 或具体字段：skill / MCP / 知识库 / 上下文(agents.md)              │
+│    · 代码仓（RepoRef）/ 模型（modelRef）/ 环境变量（envVars）         │
 │    · 执行器类型（agentRuntime）/ 配置缓存键（configKey）               │
 │    · 持有 sessionKey ↔ sessionId                                       │
 │    · 调度：创建 / 续聊 / 销毁 session                                   │
@@ -37,6 +42,7 @@
 ┌──────────────────────────▼────────────────────────────────────────┐
 │                    Agent Core（运行时层）                           │
 │                                                                   │
+│  harness 配置本地缓存（按 harnessRef，由 Agent-Management 同步）     │
 │  session 生命周期管理                                              │
 │                                                                   │
 │  ┌─ 沙箱（编排层不可见）───────────────────────────────────────┐  │
@@ -59,10 +65,12 @@
 
 提供 session 生命周期接口与环境准备：
 
-- `POST /sessions` 创建会话。入参：`sessionKey`、`skillSnapshotRefs`、`mcpSnapshotRefs`、`knowledgeBaseRefs`（可选）、`contextRef`（可选）、`modelRef`（可选）、`repo`（可选）、`envVars`（可选，环境变量）、`agentRuntime`、`configKey`（可选）。返回 `sessionId` + `chatUrl`。幂等。
+- `POST /sessions` 创建会话。入参：`sessionKey`、`harnessRef`（可选，整体兜底）、`skillSnapshotRefs`、`mcpSnapshotRefs`、`knowledgeBaseRefs`（可选）、`contextRef`（可选）、`modelRef`（可选）、`repo`（可选）、`envVars`（可选，环境变量）、`agentRuntime`、`configKey`（可选）。返回 `sessionId` + `chatUrl`。幂等。
 - `GET /sessions/{id}` 查询状态，返回 `status`（ACTIVE/COMPLETED/FAILED）和 `lastActiveAt`。
 - 事件回调通道，推送 session 生命周期事件：`session.created`、`session.completed`、`session.failed`（任务失败）、`session.aborted`（运行时异常：沙箱崩溃/OOM）、`session.timeout`（执行超时）、`session.heartbeat`。其中 `failed` 是任务本身失败，`aborted`/`timeout` 是运行环境异常（编排层据此区分可重试场景）。
 - `DELETE /sessions/{id}` 销毁 session，幂等。
+
+配置来源二选一：传 `harnessRef` 直接命中已同步的 harness 配置（整体兜底，无需逐项拉取，见 R7）；或传具体 skill/MCP/知识库/上下文字段自行指定。两者同传时以具体字段为准、不混用。
 
 session 初始化时，按入参装配 skill 和 MCP server、注入短期凭证；按 `contextRef` 拉取项目知识说明（如 agents.md）注入对话上下文；按 `knowledgeBaseRefs` 挂载知识库；按 `repo` clone/checkout 代码仓（clone 时机自定）。不同 session 的环境相互独立。
 
@@ -117,11 +125,19 @@ session 初始化时，按入参装配 skill 和 MCP server、注入短期凭证
 - session 空闲时冻结沙箱释放算力、保留文件，需要时解冻恢复；
 - 相同 `configKey` 的 session 缓存已就绪的环境模板，后续跳过环境准备快速复用。
 
+### R6 harness 配置同步
+
+接收 Agent-Management 在 harness 发布时推送的全套配置，本地按 `harnessRef` 缓存，供 session 初始化以 `harnessRef` 整体兜底命中，免去逐项拉取。
+
+- 提供 `POST /harness/sync` 接收推送，入参 `harnessRef` + 该版本的 skill/MCP/知识库/上下文/模型路由；
+- Agent-Management 直接推送，不经编排层；harness 版本不可变，可长期缓存；
+- session 初始化传 `harnessRef` 未命中时回源拉取或返回可识别错误（见待确认）。
+
 ---
 
 ## P2 —— 长期增强
 
-### R6 效率与可观测
+### R7 效率与可观测
 
 - 相邻 session 相同 MCP 快照时复用已启动的 MCP server 进程；
 - 执行中上报审查规则命中及规模信号（工具调用数、耗时、改动范围）；

@@ -34,6 +34,12 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收 se
 ### 架构
 
 ```text
+┌─ Agent-Management（业务控制面）──────────────────────────────────────┐
+│  harness 配置：agent / skill / MCP / 知识库 / 上下文 / 模型路由        │
+│  版本化管理，发布即不可变                                              │
+└───────────────────────────┬─────────────────────────────────────────┘
+                           │ harness 发布时推送配置（POST /harness/sync，直连，不经编排层）
+                           │
 ┌─ Agent Orchestration（编排层）───────────────────────────────────────┐
 │                                                                     │
 │  ┌─ Workflow ─────────────┐    ┌─ 通用任务 ───────────┐            │
@@ -47,15 +53,10 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收 se
 │              └──────────┬──────────────────┘                         │
 │                         ▼                                            │
 │  组装 & 调度：                                                       │
-│    · skill 列表（按 agent 组装）                                       │
-│    · MCP 列表（按 agent 组装）                                         │
-│    · 知识库引用                                                        │
-│    · 项目上下文（agents.md）                                           │
-│    · 代码仓（RepoRef）                                                │
-│    · 模型（modelRef）                                                  │
-│    · 环境变量（envVars）                                              │
-│    · 执行器类型（agentRuntime）                                        │
-│    · 配置缓存键（configKey）                                           │
+│    · harnessRef（整体兜底，命中已同步配置）                            │
+│    · 或具体字段：skill / MCP / 知识库 / 上下文(agents.md)              │
+│    · 代码仓（RepoRef）/ 模型（modelRef）/ 环境变量（envVars）         │
+│    · 执行器类型（agentRuntime）/ 配置缓存键（configKey）               │
 │    · 持有 sessionKey ↔ sessionId                                       │
 │    · 调度：创建 / 续聊 / 销毁 session                                   │
 │                                                                     │
@@ -70,6 +71,7 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收 se
 ┌──────────────────────────▼────────────────────────────────────────┐
 │                    Agent Core（运行时层）                           │
 │                                                                   │
+│  harness 配置本地缓存（按 harnessRef，由 Agent-Management 同步）     │
 │  session 生命周期管理                                              │
 │                                                                   │
 │  ┌─ 沙箱（编排层不可见）───────────────────────────────────────┐  │
@@ -142,18 +144,23 @@ sequenceDiagram
 
 ### 1.1 Request
 
+配置来源二选一：传 `harnessRef` 用已同步的 harness 配置（整体兜底）；或传具体配置字段自行指定。两者同传时以具体字段为准。
+
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
 | `sessionKey` | string | 是 | 外部侧的 session 标识，供外部映射 |
-| `configKey` | string | 否 | 配置缓存键。相同 `configKey` 的 session 配置相同（skill/MCP/知识库/repo/agentRuntime 一致），Agent Core 可复用已缓存的环境模板，跳过重复准备 |
-| `skillSnapshotRefs` | string[] | 是 | Skill 快照引用列表（编排层已按 agent 组装好） |
-| `mcpSnapshotRefs` | string[] | 是 | MCP Server 快照引用列表（编排层已按 agent 组装好） |
+| `harnessRef` | string | 否 | harness 版本引用。Agent-Management 发布 harness 时已将该版本的全套配置（skill/MCP/知识库/上下文等）同步到 Agent Core，此处只传引用即可，无需逐项拉取。不传则用下方具体字段 |
+| `configKey` | string | 否 | 配置缓存键。相同 `configKey` 的 session 配置相同，Agent Core 可复用已缓存的环境模板，跳过重复准备 |
+| `skillSnapshotRefs` | string[] | 否 | Skill 快照引用列表。不传 `harnessRef` 时使用 |
+| `mcpSnapshotRefs` | string[] | 否 | MCP Server 快照引用列表。不传 `harnessRef` 时使用 |
 | `knowledgeBaseRefs` | string[] | 否 | 知识库引用列表 |
 | `contextRef` | string | 否 | 项目空间知识说明引用（如 agents.md，包含项目背景、编码规范、约定） |
 | `modelRef` | string | 否 | 模型引用，指定本轮对话使用的模型。Agent Core 据此选择模型端点、注入对应 credential。不传则使用默认模型 |
 | `repo` | RepoRef | 否 | 代码仓引用（repoUrl / branch / commit）。不传则为无 repo 会话 |
 | `envVars` | map | 否 | 环境变量，注入沙箱内执行环境（如构建/运行所需配置）。敏感值建议走凭证机制而非明文 |
 | `agentRuntime` | string | 是 | 执行器类型（见 §5） |
+
+> **harnessRef 整体兜底**：不传任何具体配置字段时，Agent Core 用 `harnessRef` 指向的已同步 harness 配置整套装配；一旦传了具体字段，则以具体字段为准、不混用。
 
 ### 1.2 Response
 
@@ -168,6 +175,7 @@ sequenceDiagram
 
 | 能力 | 优先级 | 说明 |
 |---|---|---|
+| harness 配置解析 | P0 | 传 `harnessRef` 时，直接使用已同步的 harness 配置（见 §3.4）整套装配，无需逐项拉取 |
 | Skill 装配 | P0 | 按 `skillSnapshotRefs` 拉取 skill 内容，装载进当前 session |
 | MCP Server 装配 | P0 | 按 `mcpSnapshotRefs` 拉取配置，启动或注册 MCP server，注入短期凭证 |
 | 知识库挂载 | P0 | 按 `knowledgeBaseRefs` 以只读方式挂载文件形态知识库，或注册检索服务形态知识库 |
@@ -331,6 +339,39 @@ SSE 之外的补充通道，主动推送生命周期事件。展示类事件（t
 | 沙箱回收 | P0 | session 销毁时回收沙箱及所有关联资源（容器、进程、临时存储） |
 | 凭证回收 | P0 | 回收本 session 的短期凭证 |
 | 清理幂等 | P0 | session 已不存在时返回可识别状态，不报错 |
+
+---
+
+### 3.4 harness 配置同步（Agent-Management → Agent Core）
+
+优先级：**P1**
+
+为降低 session 初始化时逐项拉取配置的开销，Agent-Management 在 harness **发布新版本时直接推送**该版本的全套配置到 Agent Core，Agent Core 本地缓存。之后 session 初始化只需传 `harnessRef`，直接命中本地缓存，无需临时拉取 skill/MCP/知识库/上下文。
+
+- **同步方向**：Agent-Management 直接推送给 Agent Core，不经编排层中转；
+- **同步时机**：harness 发布新版本时推送（事件驱动），非 session 初始化时拉取；
+- **同步内容**：harness 版本对应的 skill 快照、MCP 配置、知识库引用、项目上下文（agents.md）、模型路由等整套配置；
+- **不可变**：harness 版本不可变，已同步的配置可长期缓存；新版本生成新 `harnessRef`。
+
+**接口：** `POST /harness/sync`
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `harnessRef` | string | 是 | harness 版本引用，作为缓存键 |
+| `skillSnapshotRefs` | string[] | 否 | 该版本的 skill 快照 |
+| `mcpSnapshotRefs` | string[] | 否 | 该版本的 MCP 配置 |
+| `knowledgeBaseRefs` | string[] | 否 | 该版本的知识库引用 |
+| `contextRef` | string | 否 | 该版本的项目上下文 |
+| `modelRef` | string | 否 | 该版本的默认模型路由 |
+
+**要求具备的能力：**
+
+| 能力 | 优先级 | 说明 |
+|---|---|---|
+| harness 配置接收与缓存 | P1 | 接收 Agent-Management 推送的 harness 配置，按 `harnessRef` 本地缓存，供 session 初始化命中 |
+| 配置预热 | P2 | 接收后可预拉取 skill/MCP 内容、预热环境模板，进一步缩短后续 session 启动时间 |
+
+> 若 session 初始化传入的 `harnessRef` 在 Agent Core 本地未命中（同步延迟或丢失），Agent Core 应回源拉取或返回可识别错误，由编排层重试（见 §7 待确认）。
 
 ---
 
