@@ -345,12 +345,20 @@ SSE 之外的补充通道，主动推送生命周期事件。展示类事件（t
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `harnessRef` | string | 是 | harness 版本引用，作为缓存键 |
-| `skillSnapshotRefs` | string[] | 否 | 该版本的 skill 快照 |
-| `mcpSnapshotRefs` | string[] | 否 | 该版本的 MCP 配置 |
-| `knowledgeBaseRefs` | string[] | 否 | 该版本的知识库引用 |
-| `contextRef` | string | 否 | 该版本的项目上下文 |
-| `modelRef` | string | 否 | 该版本的默认模型路由 |
+| `harnessRef` | string | 是 | harness 版本引用，作为缓存键。版本不可变 |
+| `tenantId` | string | 是 | 租户标识，用于隔离与配额归属 |
+| `agentRuntime` | string | 是 | 该 harness 使用的执行器类型（如 claude-code）|
+| `skillSnapshotRefs` | object[] | 否 | Skill 快照列表。每项含 skill 标识、版本、内容引用（脚本/工具定义），供装配进 session |
+| `mcpServers` | object[] | 否 | MCP server 配置列表。每项含 server 名、启动方式（命令/镜像/URL）、传输协议（stdio/SSE）、所需凭证引用、工具 allowlist |
+| `knowledgeBases` | object[] | 否 | 知识库列表。每项含库标识、形态（文件挂载 / 检索服务）、内容引用或检索端点、挂载路径 |
+| `contextRef` | string | 否 | 项目空间知识说明引用（agents.md 等），含项目背景、编码规范、约定 |
+| `modelRouting` | object | 否 | 模型路由：默认模型、可选模型 allowlist、各模型端点与凭证引用、预算/限流护栏 |
+| `toolPolicy` | object | 否 | 工具与命令策略：允许的工具/命令/路径 allowlist、危险操作规则 |
+| `networkPolicy` | object | 否 | 网络策略：egress allowlist（模型端点 / MCP / repo 源 / 知识库服务）|
+| `envVars` | map | 否 | harness 级默认环境变量（session 入参可覆盖）|
+| `resourceProfile` | object | 否 | 资源画像建议：CPU/内存/磁盘配额、沙箱类型倾向 |
+
+> 凭证本身不随 harness 同步明文，只同步**引用**；运行时由 Agent Core 经凭证服务换取短期令牌。
 
 **要求具备的能力：**
 

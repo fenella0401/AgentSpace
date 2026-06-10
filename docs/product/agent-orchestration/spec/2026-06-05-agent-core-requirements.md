@@ -72,7 +72,28 @@ session 初始化时，按入参装配 skill 和 MCP server、注入短期凭证
 
 ### R2 harness 配置同步
 
-提供 `POST /harness/sync`：接收 Agent-Management 在 harness 发布时推送的全套配置（`harnessRef` + 该版本的 skill/MCP/知识库/上下文/模型路由），本地按 `harnessRef` 缓存，供 session 初始化以 `harnessRef` 整体兜底命中，免去逐项拉取。
+提供 `POST /harness/sync`：接收 Agent-Management 在 harness 发布时推送的全套配置，本地按 `harnessRef` 缓存，供 session 初始化以 `harnessRef` 整体兜底命中，免去逐项拉取。
+
+同步内容（一个 harness 版本的完整配置）：
+
+| 内容 | 说明 |
+|---|---|
+| `harnessRef` | 版本引用，缓存键，不可变 |
+| `tenantId` | 租户标识，隔离与配额归属 |
+| `agentRuntime` | 执行器类型（如 claude-code）|
+| skill 快照 | 每项含 skill 标识、版本、内容引用（脚本/工具定义）|
+| MCP server 配置 | 每项含 server 名、启动方式（命令/镜像/URL）、传输协议、凭证引用、工具 allowlist |
+| 知识库 | 每项含标识、形态（文件挂载/检索服务）、内容引用或检索端点、挂载路径 |
+| 项目上下文 | agents.md 等，项目背景、编码规范、约定 |
+| 模型路由 | 默认模型、可选模型 allowlist、端点与凭证引用、预算/限流护栏 |
+| 工具策略 | 工具/命令/路径 allowlist、危险操作规则 |
+| 网络策略 | egress allowlist（模型端点/MCP/repo 源/知识库服务）|
+| 默认环境变量 | harness 级默认 envVars（session 入参可覆盖）|
+| 资源画像 | CPU/内存/磁盘配额、沙箱类型倾向 |
+
+> 凭证不同步明文，只同步引用；运行时由 Agent Core 经凭证服务换取短期令牌。
+
+规则：
 
 - Agent-Management 直接推送、不经编排层；
 - harness 发布新版本时推送（事件驱动），非 session 初始化时拉取；
