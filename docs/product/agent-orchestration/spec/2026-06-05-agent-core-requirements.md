@@ -55,6 +55,7 @@
 
 - `POST /sessions` 创建会话。入参：`sessionKey`、`harnessRef`（可选，整体兜底）、`skillSnapshotRefs`、`mcpSnapshotRefs`、`knowledgeBaseRefs`（可选）、`contextRef`（可选）、`modelRef`（可选）、`repo`（可选）、`envVars`（可选，环境变量）、`agentRuntime`、`configKey`（可选）。返回 `sessionId` + `chatUrl`。幂等。
 - `GET /sessions/{id}` 查询状态，返回 `status`（ACTIVE/COMPLETED/FAILED）和 `lastActiveAt`。
+- `GET /sessions/{id}/changes` 查看本次改动：不带参数返回改动文件列表（路径、变更类型、增删行数 + baseCommit/headCommit）；带 `path` 返回该文件的 unified diff。基于 workspace 内 git 工作区计算，供前端展示 diff、用户审查。超大/二进制文件按策略截断或标记。
 - 事件回调通道，推送 session 生命周期事件：`session.created`、`session.completed`、`session.failed`（任务失败）、`session.aborted`（运行时异常：沙箱崩溃/OOM）、`session.timeout`（执行超时）、`session.heartbeat`。其中 `failed` 是任务本身失败，`aborted`/`timeout` 是运行环境异常（编排层据此区分可重试场景）。
 - `DELETE /sessions/{id}` 销毁 session，幂等。
 
@@ -105,8 +106,6 @@ session 初始化时，按入参装配 skill 和 MCP server、注入短期凭证
 提供 `GET /sessions/{id}/chat` 对话接口。建连参数：`prompt`、`resumeFromSessionRef`（可选）。按 `agentRuntime` 选择执行器启动代码 Agent，经 SSE 流式返回所有执行事件（thinking / message / tool_use / tool_result / stdout / stderr / session.completed / session.failed）。`session.completed` payload 含 summary、result、artifactRefs、commitSha、sessionRef。
 
 提供 `POST /sessions/{id}/abort` 中止当前正在执行的对话（不销毁 session）：停止本轮 agent 执行，保留对话上下文，session 仍可续聊。用于 agent 陷入死循环、或用户主动打断。幂等。
-
-提供 `GET /sessions/{id}/changes` 查看本次改动：不带参数返回改动文件列表（路径、变更类型、增删行数 + baseCommit/headCommit）；带 `path` 返回该文件的 unified diff。基于 workspace 内 git 工作区计算，供前端展示 diff、用户审查。超大/二进制文件按策略截断或标记。
 
 **单会话串行**：同一 session 同时只允许一个活跃对话连接。已有对话在执行时，新建连请求被拒绝或排队（断连重连场景下，旧连接需先释放）。避免同一对话上下文被并发写坏。
 
