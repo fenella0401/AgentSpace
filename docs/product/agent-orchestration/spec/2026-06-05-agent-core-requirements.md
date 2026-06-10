@@ -8,40 +8,42 @@
 ┌─ Agent-Management（业务控制面）──────────────────────────────────────┐
 │  harness 配置：agent / skill / MCP / 知识库 / 上下文 / 模型路由        │
 │  版本化管理，发布即不可变                                              │
-└───────────────────────────┬─────────────────────────────────────────┘
-                           │ harness 发布时推送配置（直连 Agent Core，不经编排层）
-                           │
-┌─ Agent Orchestration（编排层）───────────────────────────────────────┐
-│                                                                     │
-│  ┌─ Workflow ─────────────┐    ┌─ 通用任务 ───────────┐            │
-│  │                        │    │                      │            │
-│  │  step DAG              │    │  无需模板，即席触发     │            │
-│  │  run/step/attempt 状态机│    │                      │            │
-│  │  requiresConfirmation   │    │                      │            │
-│  │                        │    │                      │            │
-│  └───────────┬────────────┘    └──────────┬───────────┘            │
-│              │ step 就绪                    │ 触发 session 创建        │
-│              └──────────┬──────────────────┘                         │
-│                         ▼                                            │
-│  组装 & 调度：                                                       │
-│    · harnessRef（整体兜底，命中已同步配置）                            │
-│    · 或具体字段：skill / MCP / 知识库 / 上下文(agents.md)              │
-│    · 代码仓（RepoRef）/ 模型（modelRef）/ 环境变量（envVars）         │
-│    · 执行器类型（agentRuntime）/ 配置缓存键（configKey）               │
-│    · 持有 sessionKey ↔ sessionId                                       │
-│    · 调度：创建 / 续聊 / 销毁 session                                   │
-│                                                                     │
-└───────────────────────────┬─────────────────────────────────────────┘
-                           │
-       POST /sessions      │   GET /sessions/{id}/chat
-       GET /sessions/{id}  │   POST /sessions/{id}/abort
-       DELETE /sessions/{id}│
-                           │  ← 事件回调
-                           │    (created / completed / failed / aborted / timeout / heartbeat)
-                           │
-┌──────────────────────────▼────────────────────────────────────────┐
-│                    Agent Core（运行时层）                           │
-│                                                                   │
+└──────┬──────────────────────────────────────────────────────────────┘
+       │                                                              ┊
+       │ 启动 run / 提交任务                                           ┊ harness 发布时推送
+       ▼                                                              ┊ POST /harness/sync
+┌─ Agent Orchestration（编排层）───────────────────────────────────────┐ ┊ （直连，不经编排层）
+│                                                                     │ ┊
+│  ┌─ Workflow ─────────────┐    ┌─ 通用任务 ───────────┐            │ ┊
+│  │                        │    │                      │            │ ┊
+│  │  step DAG              │    │  无需模板，即席触发     │            │ ┊
+│  │  run/step/attempt 状态机│    │                      │            │ ┊
+│  │  requiresConfirmation   │    │                      │            │ ┊
+│  │                        │    │                      │            │ ┊
+│  └───────────┬────────────┘    └──────────┬───────────┘            │ ┊
+│              │ step 就绪                    │ 触发 session 创建        │ ┊
+│              └──────────┬──────────────────┘                         │ ┊
+│                         ▼                                            │ ┊
+│  组装 & 调度：                                                       │ ┊
+│    · harnessRef（整体兜底，命中已同步配置）                            │ ┊
+│    · 或具体字段：skill / MCP / 知识库 / 上下文(agents.md)              │ ┊
+│    · 代码仓（RepoRef）/ 模型（modelRef）/ 环境变量（envVars）         │ ┊
+│    · 执行器类型（agentRuntime）/ 配置缓存键（configKey）               │ ┊
+│    · 持有 sessionKey ↔ sessionId                                       │ ┊
+│    · 调度：创建 / 续聊 / 销毁 session                                   │ ┊
+│                                                                     │ ┊
+└───────────────────────────┬─────────────────────────────────────────┘ ┊
+                           │                                            ┊
+       POST /sessions      │   GET /sessions/{id}/chat                  ┊
+       GET /sessions/{id}  │   POST /sessions/{id}/abort                ┊
+       DELETE /sessions/{id}│                                            ┊
+                           │  ← 事件回调                                 ┊
+                           │    (created / completed / failed /         ┊
+                           │     aborted / timeout / heartbeat)         ┊
+                           ▼                                            ┊
+┌────────────────────────────────────────────────────────────────────┐ ┊
+│                    Agent Core（运行时层）            ◄───────────────┼─┘
+│                                                                    │
 │  harness 配置本地缓存（按 harnessRef，由 Agent-Management 同步）     │
 │  session 生命周期管理                                              │
 │                                                                   │
