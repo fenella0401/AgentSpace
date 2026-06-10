@@ -5,60 +5,46 @@
 ## 架构
 
 ```text
-┌─ Agent-Management（业务控制面）──────────────────────────────────────┐
-│  harness 配置：agent / skill / MCP / 知识库 / 上下文 / 模型路由        │
-│  版本化管理，发布即不可变                                              │
-└──────┬──────────────────────────────────────────────────────────────┘
-       │                                                              ┊
-       │ 启动 run / 提交任务                                           ┊ harness 发布时推送
-       ▼                                                              ┊ POST /harness/sync
-┌─ Agent Orchestration（编排层）───────────────────────────────────────┐ ┊ （直连，不经编排层）
-│                                                                     │ ┊
-│  ┌─ Workflow ─────────────┐    ┌─ 通用任务 ───────────┐            │ ┊
-│  │                        │    │                      │            │ ┊
-│  │  step DAG              │    │  无需模板，即席触发     │            │ ┊
-│  │  run/step/attempt 状态机│    │                      │            │ ┊
-│  │  requiresConfirmation   │    │                      │            │ ┊
-│  │                        │    │                      │            │ ┊
-│  └───────────┬────────────┘    └──────────┬───────────┘            │ ┊
-│              │ step 就绪                    │ 触发 session 创建        │ ┊
-│              └──────────┬──────────────────┘                         │ ┊
-│                         ▼                                            │ ┊
-│  组装 & 调度：                                                       │ ┊
-│    · harnessRef（整体兜底，命中已同步配置）                            │ ┊
-│    · 或具体字段：skill / MCP / 知识库 / 上下文(agents.md)              │ ┊
-│    · 代码仓（RepoRef）/ 模型（modelRef）/ 环境变量（envVars）         │ ┊
-│    · 执行器类型（agentRuntime）/ 配置缓存键（configKey）               │ ┊
-│    · 持有 sessionKey ↔ sessionId                                       │ ┊
-│    · 调度：创建 / 续聊 / 销毁 session                                   │ ┊
-│                                                                     │ ┊
-└───────────────────────────┬─────────────────────────────────────────┘ ┊
-                           │                                            ┊
-       POST /sessions      │   GET /sessions/{id}/chat                  ┊
-       GET /sessions/{id}  │   POST /sessions/{id}/abort                ┊
-       DELETE /sessions/{id}│                                            ┊
-                           │  ← 事件回调                                 ┊
-                           │    (created / completed / failed /         ┊
-                           │     aborted / timeout / heartbeat)         ┊
-                           ▼                                            ┊
-┌────────────────────────────────────────────────────────────────────┐ ┊
-│                    Agent Core（运行时层）            ◄───────────────┼─┘
-│                                                                    │
-│  harness 配置本地缓存（按 harnessRef，由 Agent-Management 同步）     │
-│  session 生命周期管理                                              │
-│                                                                   │
-│  ┌─ 沙箱（编排层不可见）───────────────────────────────────────┐  │
-│  │                                                            │  │
-│  │  代码 Agent（claude-code / ...）                            │  │
-│  │  装配的 skill / MCP       clone 的代码仓       workspace 卷  │  │
-│  │                                                            │  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                                                                   │
-│  对话隔离 / 文件隔离 / 进程隔离 / 网络隔离                           │
-│  网络 egress 管控 / 工具 allowlist / 凭证注入与回收                   │
-│  事件流（SSE）+ 回调上报                                           │
-│                                                                   │
-└───────────────────────────────────────────────────────────────────┘
+┌─ Agent Orchestration（编排层）──────────────────────────┐
+│                                                        │
+│  ┌─ Workflow ──────────┐   ┌─ 通用任务 ────────┐      │      ┌─ Agent-Management ───────┐
+│  │  step DAG           │   │  无需模板，即席触发 │      │      │  （业务控制面）           │
+│  │  run/step/attempt   │   │                   │      │◄─────┤                          │
+│  │  requiresConfirmation│  │                   │      │ 启动 │  harness 配置：           │
+│  └─────────┬───────────┘   └────────┬──────────┘      │ run  │   agent / skill / MCP /   │
+│            │ step 就绪              │ 触发 session 创建 │      │   知识库 / 上下文 / 模型   │
+│            └──────────┬────────────┘                   │      │  版本化，发布即不可变      │
+│                       ▼                                │      └──────────┬───────────────┘
+│  组装 & 调度：                                          │                 │
+│    · harnessRef（整体兜底，命中已同步配置）              │                 │ harness 发布时
+│    · 或具体字段：skill/MCP/知识库/上下文(agents.md)      │                 │ 推送配置（直连，
+│    · 代码仓/模型(modelRef)/环境变量(envVars)            │                 │ 不经编排层）
+│    · agentRuntime / configKey                          │                 │ POST /harness/sync
+│    · 持有 sessionKey ↔ sessionId / 调度增删会话          │                 │
+│                                                        │                 │
+└──────────────────────────┬─────────────────────────────┘                 │
+                          │                                                 │
+      POST /sessions      │   GET /sessions/{id}/chat                       │
+      GET /sessions/{id}  │   POST /sessions/{id}/abort                     │
+      DELETE /sessions/{id}│   ← 事件回调(created/completed/failed/          │
+                          │      aborted/timeout/heartbeat)                 │
+                          ▼                                                 │
+┌────────────────────────────────────────────────────────┐                 │
+│                Agent Core（运行时层）        ◄───────────┼─────────────────┘
+│                                                         │
+│  harness 配置本地缓存（按 harnessRef）                   │
+│  session 生命周期管理                                    │
+│                                                         │
+│  ┌─ 沙箱（编排层不可见）──────────────────────────────┐  │
+│  │  代码 Agent（claude-code / ...）                   │  │
+│  │  装配的 skill / MCP   clone 的代码仓   workspace 卷 │  │
+│  └────────────────────────────────────────────────────┘  │
+│                                                         │
+│  对话隔离 / 文件隔离 / 进程隔离 / 网络隔离                 │
+│  网络 egress 管控 / 工具 allowlist / 凭证注入与回收        │
+│  事件流（SSE）+ 回调上报                                 │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ## P0 —— 不具备则无法交付
