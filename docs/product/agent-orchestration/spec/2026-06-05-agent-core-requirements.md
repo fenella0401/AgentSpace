@@ -106,6 +106,8 @@ session 初始化时，按入参装配 skill 和 MCP server、注入短期凭证
 
 提供 `POST /sessions/{id}/abort` 中止当前正在执行的对话（不销毁 session）：停止本轮 agent 执行，保留对话上下文，session 仍可续聊。用于 agent 陷入死循环、或用户主动打断。幂等。
 
+提供 `GET /sessions/{id}/changes` 查看本次改动：不带参数返回改动文件列表（路径、变更类型、增删行数 + baseCommit/headCommit）；带 `path` 返回该文件的 unified diff。基于 workspace 内 git 工作区计算，供前端展示 diff、用户审查。超大/二进制文件按策略截断或标记。
+
 **单会话串行**：同一 session 同时只允许一个活跃对话连接。已有对话在执行时，新建连请求被拒绝或排队（断连重连场景下，旧连接需先释放）。避免同一对话上下文被并发写坏。
 
 对话过程中 agent 的代码改动负责 commit/push。对话上下文持久化落盘（键=sessionRef），执行进程退出后不丢，续聊时 `--resume` 重载恢复。外部对进程冷热无感知，续聊一律走 `GET /sessions/{id}/chat`。

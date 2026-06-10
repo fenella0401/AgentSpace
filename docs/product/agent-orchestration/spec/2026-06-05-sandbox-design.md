@@ -28,6 +28,7 @@ Agent Core 是 Agent 的运行时执行层。它的核心工作是：**接收 se
 | `GET /sessions/{id}/chat` | **核心** | 对话——建连即开始/续接对话，流式返回所有执行事件 |
 | `POST /sessions/{id}/abort` | 辅助 | 中止当前对话，保留 session 可续聊 |
 | `GET /sessions/{id}` | 辅助 | 查询 session 状态，供外部轮询判活 |
+| `GET /sessions/{id}/changes` | 辅助 | 查看本次改动的文件列表与 diff |
 | 事件回调 → 外部 | 辅助 | 生命周期事件主动推送 |
 | `DELETE /sessions/{id}` | 辅助 | 销毁 session |
 
@@ -163,7 +164,7 @@ sequenceDiagram
 
 | 能力 | 优先级 | 说明 |
 |---|---|---|
-| harness 配置解析 | P0 | 传 `harnessRef` 时，直接使用已同步的 harness 配置（见 §3.4）整套装配，无需逐项拉取 |
+| harness 配置解析 | P0 | 传 `harnessRef` 时，直接使用已同步的 harness 配置（见 §3.5）整套装配，无需逐项拉取 |
 | Skill 装配 | P0 | 按 `skillSnapshotRefs` 拉取 skill 内容，装载进当前 session |
 | MCP Server 装配 | P0 | 按 `mcpSnapshotRefs` 拉取配置，启动或注册 MCP server，注入短期凭证 |
 | 知识库挂载 | P0 | 按 `knowledgeBaseRefs` 以只读方式挂载文件形态知识库，或注册检索服务形态知识库 |
@@ -286,7 +287,44 @@ Agent Core 的**核心执行通道**。外部通过 SSE 长连接进行对话。
 
 ---
 
-### 3.2 事件回调（Agent Core → 外部）
+### 3.2 GET /sessions/{sessionId}/changes（查看本次改动）
+
+优先级：**P0**
+
+查看本 session 对代码仓的文件改动，供前端展示 diff、用户审查。
+
+**Query 参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `path` | string | 否 | 指定文件路径，返回单文件 diff；不传则返回改动文件列表 |
+
+**Response（文件列表）：**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `baseCommit` | string | 改动基线 commit（session 起始状态）|
+| `headCommit` | string | 当前 commit（如已 commit）|
+| `files` | object[] | 改动文件列表，每项含 `path`、`changeType`（added/modified/deleted/renamed）、`additions`、`deletions` |
+
+**Response（单文件，带 `path`）：**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `path` | string | 文件路径 |
+| `changeType` | enum | added / modified / deleted / renamed |
+| `diff` | string | 统一 diff 格式（unified diff）文本 |
+
+**要求具备的能力：**
+
+| 能力 | 优先级 | 说明 |
+|---|---|---|
+| 改动查询 | P0 | 基于 workspace 内 git 工作区，计算并返回本 session 相对基线的文件改动列表与 diff |
+| 大文件处理 | P1 | 超大 diff / 二进制文件按策略截断或标记，不撑爆响应 |
+
+---
+
+### 3.3 事件回调（Agent Core → 外部）
 
 优先级：**P0**
 
@@ -314,7 +352,7 @@ SSE 之外的补充通道，主动推送生命周期事件。展示类事件（t
 
 ---
 
-### 3.3 DELETE /sessions/{sessionId}（销毁 session）
+### 3.4 DELETE /sessions/{sessionId}（销毁 session）
 
 优先级：**P0**
 
@@ -330,7 +368,7 @@ SSE 之外的补充通道，主动推送生命周期事件。展示类事件（t
 
 ---
 
-### 3.4 harness 配置同步（Agent-Management → Agent Core）
+### 3.5 harness 配置同步（Agent-Management → Agent Core）
 
 优先级：**P0**
 
