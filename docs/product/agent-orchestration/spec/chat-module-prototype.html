@@ -404,20 +404,7 @@ Step 8/14 : RUN npm run build …</div>
         <div class="item"><span>结束人</span><b>—（进行中）</b></div>
         <div class="item"><span>事件来源</span><b>GitHub Release</b></div>
       </div>
-      <div class="flow-bar">
-        <div class="fb-label">AgentFlow · release-pipeline@v12</div>
-        <div class="flow-steps">
-          <div class="flow-node"><span class="fn-dot done">✓</span>拉取依赖</div>
-          <span class="flow-arrow">→</span>
-          <div class="flow-node"><span class="fn-dot done">✓</span>单元测试</div>
-          <span class="flow-arrow">→</span>
-          <div class="flow-node cur"><span class="fn-dot running">▶</span>构建镜像</div>
-          <span class="flow-arrow">→</span>
-          <div class="flow-node"><span class="fn-dot pending">4</span>部署预发·审查</div>
-          <span class="flow-arrow">→</span>
-          <div class="flow-node"><span class="fn-dot pending">5</span>灰度生产</div>
-        </div>
-      </div>
+
     <div class="file-list-pane">
       <div class="panel-head">变更文件 <span class="badge-num">3</span></div>
       <div class="file-list">
@@ -490,6 +477,7 @@ Step 8/14 : RUN npm run build …</div>
     document.getElementById('infoChat').style.display = 'block';
     document.getElementById('infoChat').innerHTML = '<div class="info-meta"><div class="item"><span>会话名称</span><b>新对话</b></div><div class="item"><span>类型</span><b>临时会话</b></div><div class="item"><span>状态</span><b>—</b></div><div class="item"><span>项目</span><b>—</b></div><div class="item"><span>发起人</span><b>—</b></div><div class="item"><span>开始时间</span><b>—</b></div></div>';
     document.getElementById('infoWf').style.display = 'none';
+    document.getElementById('centerFlow').style.display = 'none';
     document.getElementById('centerTitle').innerHTML = '新对话 <span class="sub"></span>';
     // agent 可选择
     document.getElementById('agentSel').disabled = false;
@@ -524,12 +512,14 @@ Step 8/14 : RUN npm run build …</div>
       wf.style.display = 'flex';
       infoChat.style.display = 'none';
       infoWf.style.display = 'block';
+      document.getElementById('centerFlow').style.display = 'block';
       if (!keepTitle) title.innerHTML = el.querySelector('.title').innerText + ' <span class="sub">workflow · 5 steps</span>';
     } else {
       chat.style.display = 'flex';
       wf.style.display = 'none';
       infoChat.style.display = 'block';
       infoWf.style.display = 'none';
+      document.getElementById('centerFlow').style.display = 'none';
       title.innerHTML = (el ? el.querySelector('.title').innerText : '修复登录页 token 刷新') + ' <span class="sub">claude-code · my-web-app</span>';
       // 已有对话不可更改 agent
       document.getElementById('agentSel').disabled = true;
