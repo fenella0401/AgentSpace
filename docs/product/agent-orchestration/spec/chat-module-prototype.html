@@ -167,11 +167,9 @@
   /* 放大弹窗 */
   .zoom-btn { cursor: pointer; color: var(--accent); font-size: 12px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 4px; padding: 2px 8px; margin-left: 6px; }
   .zoom-btn:hover { background: var(--accent); color: #fff; }
-  .zoom-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; display: flex; align-items: center; justify-content: center; }
-  .zoom-overlay.hidden { display: none; }
-  .zoom-box { background: var(--panel); border-radius: 10px; width: 80vw; height: 85vh; display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0,0,0,.2); }
-  .zoom-head { height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; }
-  .zoom-body { flex: 1; overflow: auto; }
+  /* 文件详情展开 */
+  .file-col.expanded .file-list-pane { display: none; }
+  .file-col.expanded .file-detail-pane { flex: 1; }
 
   /* 会话类型标签 */
   .type-tag { font-size: 10px; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
@@ -439,7 +437,7 @@ Step 8/14 : RUN npm run build …</div>
       </div>
     </div>
     <div class="file-detail-pane">
-      <div class="panel-head">src/auth/token.ts <span class="sub">+18 -4</span> <button class="zoom-btn" onclick="openZoom()" title="放大查看">🔍 放大</button></div>
+      <div class="panel-head">src/auth/token.ts <span class="sub">+18 -4</span> <button class="zoom-btn" onclick="toggleExpand()" title="放大查看">🔍 放大</button></div>
       <div class="diff" id="fileDiff">
         <div class="line hunk">@@ -12,7 +12,9 @@ export class TokenManager {</div>
         <div class="line ctx">   async getToken() {</div>
@@ -468,10 +466,6 @@ Step 8/14 : RUN npm run build …</div>
 
 </div>
 
-<!-- 文件详情放大弹窗 -->
-<div class="zoom-overlay hidden" id="zoomOverlay" onclick="closeZoom(event)">
-  <div class="zoom-box" onclick="event.stopPropagation()">
-    <div class="zoom-head" id="zoomHead">src/auth/token.ts <span class="sub">+18 -4</span> <button class="close" onclick="closeZoom()">✕</button></div>
     <div class="zoom-body" id="zoomBody"></div>
   </div>
 </div>
@@ -563,16 +557,14 @@ Step 8/14 : RUN npm run build …</div>
       document.getElementById('agentHint').textContent = '已创建，不可更改';
     }
 
-  function openZoom() {
-    var d = document.getElementById("fileDiff");
-    document.getElementById("zoomBody").innerHTML = d ? d.innerHTML : "";
-    document.getElementById("zoomOverlay").classList.remove("hidden");
-  }
-  function closeZoom(e) {
-    if (e && e.target !== document.getElementById("zoomOverlay")) return;
-    document.getElementById("zoomOverlay").classList.add("hidden");
+
   }
 
+  function toggleExpand() {
+    var fc = document.querySelector('.file-col');
+    var btn = fc.querySelector('.zoom-btn');
+    fc.classList.toggle('expanded');
+    btn.textContent = fc.classList.contains('expanded') ? '🔍 收起' : '🔍 放大';
   }
 </script>
 </body>
