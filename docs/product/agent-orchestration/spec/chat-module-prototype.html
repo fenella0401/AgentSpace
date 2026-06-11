@@ -137,8 +137,10 @@
   .btn-send { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 7px 18px; cursor: pointer; font-size: 13px; }
 
   /* ---- 右：文件列表 + 文件详情 ---- */
-  .file-col { display: flex; flex-direction: column; }
-  .file-list-pane { flex: 0 0 40%; display: flex; flex-direction: column; border-bottom: 1px solid var(--border); background: var(--panel); }
+  .file-col { display: flex; flex-direction: column; min-width: 0; }
+  .file-col .info-bar { border-top: 1px solid var(--border); flex-shrink: 0; }
+  .file-col .info-bar .flow-bar { margin-bottom: 4px; }
+  .file-list-pane { flex: 1; display: flex; flex-direction: column; border-bottom: 1px solid var(--border); background: var(--panel); }
   .file-list { overflow-y: auto; flex: 1; }
   .file-item {
     padding: 8px 14px; cursor: pointer; display: flex; align-items: center; gap: 8px;
@@ -154,7 +156,6 @@
   .file-item .stat { font-size: 11px; }
   .stat .add { color: var(--green); }
   .stat .del { color: var(--red); }
-  .file-detail-pane { flex: 1; display: flex; flex-direction: column; background: var(--panel); min-height: 0; }
   .diff { flex: 1; overflow: auto; font-family: var(--mono); font-size: 12px; line-height: 1.6; padding: 8px 0; }
   .diff .line { padding: 0 14px; white-space: pre; }
   .diff .hunk { color: var(--accent); background: var(--accent-soft); }
@@ -162,14 +163,15 @@
   .diff .del { background: #fdecec; color: #b42318; }
   .diff .ctx { color: var(--text); }
   .empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-sub); font-size: 12px; }
-  .badge-num { background: var(--accent); color: #fff; border-radius: 9px; padding: 1px 7px; font-size: 11px; }
 
-  /* 放大弹窗 */
-  .zoom-btn { cursor: pointer; color: var(--accent); font-size: 12px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 4px; padding: 2px 8px; margin-left: 6px; }
-  .zoom-btn:hover { background: var(--accent); color: #fff; }
-  /* 文件详情展开 */
-  .file-col.expanded .file-list-pane { display: none; }
-  .file-col.expanded .file-detail-pane { flex: 1; }
+  /* 文件 diff 弹窗 */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100; display: flex; align-items: center; justify-content: center; }
+  .modal-overlay.hidden { display: none; }
+  .modal-box { background: var(--panel); border-radius: 10px; width: 80vw; height: 85vh; display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0,0,0,.2); overflow: hidden; }
+  .modal-box .m-head { padding: 14px 18px; font-size: 14px; font-weight: 600; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+  .modal-box .m-head .close { cursor: pointer; color: var(--text-sub); font-size: 20px; background: none; border: none; }
+  .modal-box .m-body { flex: 1; overflow: auto; padding: 0; }
+  .badge-num { background: var(--accent); color: #fff; border-radius: 9px; padding: 1px 7px; font-size: 11px; }
 
   /* 会话类型标签 */
   .type-tag { font-size: 10px; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
@@ -304,48 +306,8 @@
       <span class="sub">claude-code · my-web-app</span>
     </div>
 
-    <!-- 基本信息栏：聊天 -->
-    <div class="info-bar" id="infoChat">
-      <div class="info-meta">
-        <div class="item"><span>会话名称</span><b>修复登录页 token 刷新</b></div>
-        <div class="item"><span>类型</span><b>临时会话</b></div>
-        <div class="item"><span>关联任务</span><b>—</b></div>
-        <div class="item"><span>状态</span><b>执行中</b></div>
-        <div class="item"><span>运行时</span><b>claude-code</b></div>
-        <div class="item"><span>项目</span><b>my-web-app</b></div>
-        <div class="item"><span>发起人</span><b>张三</b></div>
-        <div class="item"><span>开始时间</span><b>今天 14:02</b></div>
-      </div>
     </div>
 
-    <!-- 基本信息栏：workflow（带事件触发概述）-->
-    <div class="info-bar" id="infoWf" style="display:none;">
-      <div class="info-meta">
-        <div class="item"><span>会话名称</span><b>发布流水线：v2.3 上线</b></div>
-        <div class="item"><span>类型</span><b>事件任务</b></div>
-        <div class="item"><span>关联任务</span><b><a class="ev-link" href="#">run-8f3a2c</a></b></div>
-        <div class="item"><span>状态</span><b>执行中</b></div>
-        <div class="item"><span>当前步骤</span><b>3/5 · 构建镜像并推送</b></div>
-        <div class="item"><span>所属 AgentFlow</span><b>release-pipeline@v12</b></div>
-        <div class="item"><span>项目</span><b>my-web-app</b></div>
-        <div class="item"><span>开始时间</span><b>今天 13:10</b></div>
-        <div class="item"><span>结束人</span><b>—（进行中）</b></div>
-        <div class="item"><span>事件来源</span><b>GitHub Release</b></div>
-      </div>
-      <div class="flow-bar">
-        <div class="fb-label">AgentFlow · release-pipeline@v12</div>
-        <div class="flow-steps">
-          <div class="flow-node"><span class="fn-dot done">✓</span>拉取依赖</div>
-          <span class="flow-arrow">→</span>
-          <div class="flow-node"><span class="fn-dot done">✓</span>单元测试</div>
-          <span class="flow-arrow">→</span>
-          <div class="flow-node cur"><span class="fn-dot running">▶</span>构建镜像</div>
-          <span class="flow-arrow">→</span>
-          <div class="flow-node"><span class="fn-dot pending">4</span>部署预发·审查</div>
-          <span class="flow-arrow">→</span>
-          <div class="flow-node"><span class="fn-dot pending">5</span>灰度生产</div>
-        </div>
-      </div>
     </div>
 
     <!-- 聊天视图 -->
@@ -416,52 +378,69 @@ Step 8/14 : RUN npm run build …</div>
 
   <!-- 右：文件列表 + 文件详情 -->
   <div class="col file-col">
+    <!-- 基本信息栏：聊天 -->
+    <div class="info-bar" id="infoChat">
+      <div class="info-meta">
+        <div class="item"><span>会话名称</span><b>修复登录页 token 刷新</b></div>
+        <div class="item"><span>类型</span><b>临时会话</b></div>
+        <div class="item"><span>关联任务</span><b>—</b></div>
+        <div class="item"><span>状态</span><b>执行中</b></div>
+        <div class="item"><span>运行时</span><b>claude-code</b></div>
+        <div class="item"><span>项目</span><b>my-web-app</b></div>
+        <div class="item"><span>发起人</span><b>张三</b></div>
+        <div class="item"><span>开始时间</span><b>今天 14:02</b></div>
+      </div>
+    <!-- 基本信息栏：workflow（带事件触发概述）-->
+    <div class="info-bar" id="infoWf" style="display:none;">
+      <div class="info-meta">
+        <div class="item"><span>会话名称</span><b>发布流水线：v2.3 上线</b></div>
+        <div class="item"><span>类型</span><b>事件任务</b></div>
+        <div class="item"><span>关联任务</span><b><a class="ev-link" href="#">run-8f3a2c</a></b></div>
+        <div class="item"><span>状态</span><b>执行中</b></div>
+        <div class="item"><span>当前步骤</span><b>3/5 · 构建镜像并推送</b></div>
+        <div class="item"><span>所属 AgentFlow</span><b>release-pipeline@v12</b></div>
+        <div class="item"><span>项目</span><b>my-web-app</b></div>
+        <div class="item"><span>开始时间</span><b>今天 13:10</b></div>
+        <div class="item"><span>结束人</span><b>—（进行中）</b></div>
+        <div class="item"><span>事件来源</span><b>GitHub Release</b></div>
+      </div>
+      <div class="flow-bar">
+        <div class="fb-label">AgentFlow · release-pipeline@v12</div>
+        <div class="flow-steps">
+          <div class="flow-node"><span class="fn-dot done">✓</span>拉取依赖</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node"><span class="fn-dot done">✓</span>单元测试</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node cur"><span class="fn-dot running">▶</span>构建镜像</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node"><span class="fn-dot pending">4</span>部署预发·审查</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node"><span class="fn-dot pending">5</span>灰度生产</div>
+        </div>
+      </div>
     <div class="file-list-pane">
       <div class="panel-head">变更文件 <span class="badge-num">3</span></div>
       <div class="file-list">
-        <div class="file-item active">
+        <div class="file-item active" onclick="openDiffModal('src/auth/token.ts')">
           <span class="tag M">M</span>
           <span class="fpath">src/auth/token.ts</span>
           <span class="stat"><span class="add">+18</span> <span class="del">-4</span></span>
         </div>
-        <div class="file-item">
+        <div class="file-item" onclick="openDiffModal('src/auth/interceptor.ts')">
           <span class="tag M">M</span>
-          <span class="fpath">src/auth/interceptor.ts</span>
+          <span class="fpath"('src/auth/interceptor.ts')">src/auth/interceptor.ts</span>
           <span class="stat"><span class="add">+9</span> <span class="del">-2</span></span>
         </div>
-        <div class="file-item">
+        <div class="file-item" onclick="openDiffModal('src/auth/refresh.test.ts')">
           <span class="tag A">A</span>
-          <span class="fpath">src/auth/refresh.test.ts</span>
+          <span class="fpath"('src/auth/refresh.test.ts')">src/auth/refresh.test.ts</span>
           <span class="stat"><span class="add">+34</span></span>
         </div>
       </div>
     </div>
-    <div class="file-detail-pane">
-      <div class="panel-head">src/auth/token.ts <span class="sub">+18 -4</span> <button class="zoom-btn" onclick="toggleExpand()" title="放大查看">🔍 放大</button></div>
-      <div class="diff" id="fileDiff">
-        <div class="line hunk">@@ -12,7 +12,9 @@ export class TokenManager {</div>
-        <div class="line ctx">   async getToken() {</div>
-        <div class="line del">-    return this.token;</div>
-        <div class="line add">+    if (this.isExpired()) {</div>
-        <div class="line add">+      await this.refresh();</div>
-        <div class="line add">+    }</div>
-        <div class="line add">+    return this.token;</div>
-        <div class="line ctx">   }</div>
-        <div class="line ctx"> </div>
-        <div class="line hunk">@@ -28,3 +30,8 @@ export class TokenManager {</div>
-        <div class="line ctx">   async refresh() {</div>
-        <div class="line del">-    const r = await api.refresh();</div>
-        <div class="line add">+    const r = await api.refresh().catch(() => null);</div>
-        <div class="line add">+    if (!r) {</div>
-        <div class="line add">+      redirectToLogin();</div>
-        <div class="line add">+      return;</div>
-        <div class="line add">+    }</div>
-        <div class="line ctx">     this.token = r.token;</div>
-        <div class="line ctx">   }</div>
-      </div>
+    </div>
     </div>
   </div>
-
 </div>
 
 </div>
@@ -560,11 +539,19 @@ Step 8/14 : RUN npm run build …</div>
 
   }
 
-  function toggleExpand() {
-    var fc = document.querySelector('.file-col');
-    var btn = fc.querySelector('.zoom-btn');
-    fc.classList.toggle('expanded');
-    btn.textContent = fc.classList.contains('expanded') ? '🔍 收起' : '🔍 放大';
+  const fileDiffs = {
+    "src/auth/token.ts": '<div class="diff"><div class="line hunk">@@ -12,7 +12,9 @@</div><div class="line ctx">   async getToken() {</div><div class="line del">-    return this.token;</div><div class="line add">+    if (this.isExpired()) {</div><div class="line add">+      await this.refresh();</div><div class="line add">+    }</div><div class="line add">+    return this.token;</div><div class="line ctx">   }</div><div class="line hunk">@@ -28,3 +30,8 @@</div><div class="line ctx">   async refresh() {</div><div class="line del">-    const r = await api.refresh();</div><div class="line add">+    const r = await api.refresh().catch(() => null);</div><div class="line add">+    if (\!r) { redirectToLogin(); return; }</div><div class="line add">+    this.token = r.token;</div></div>',
+    "src/auth/interceptor.ts": '<div class="diff"><div class="line hunk">@@ -4,6 +4,11 @@</div><div class="line ctx"> export function setupInterceptors() {</div><div class="line add">+  api.interceptors.response.use(r => r, async err => {</div><div class="line add">+    if (err.status === 401) {</div><div class="line add">+      await refreshAndRetry(err.config);</div><div class="line add">+    }</div><div class="line add">+    return Promise.reject(err);</div><div class="line ctx">   });</div><div class="line ctx"> }</div></div>',
+    "src/auth/refresh.test.ts": '<div class="diff"><div class="line hunk">@@ -0,0 +1,34 @@</div><div class="line add">+import { refreshAndRetry } from "./interceptor";</div><div class="line add">+</div><div class="line add">+describe("token refresh", () => {</div><div class="line add">+  it("retries on 401", async () => {</div><div class="line add">+    const result = await refreshAndRetry({ retry: true });</div><div class="line add">+    expect(result.status).toBe(200);</div><div class="line add">+  });</div><div class="line add">+});</div></div>'
+  };
+  function openDiffModal(path) {
+    document.getElementById("diffModalPath").textContent = path;
+    document.getElementById("diffModalBody").innerHTML = fileDiffs[path] || "";
+    document.getElementById("diffModal").classList.remove("hidden");
+  }
+  function closeDiffModal(e) {
+    if (e && e.target \!== document.getElementById("diffModal")) return;
+    document.getElementById("diffModal").classList.add("hidden");
   }
 </script>
 </body>
