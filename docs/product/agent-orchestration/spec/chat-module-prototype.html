@@ -306,8 +306,19 @@
       <span class="sub">claude-code · my-web-app</span>
     </div>
 
-    </div>
-
+    <div class="flow-bar" id="centerFlow" style="display:none;padding:4px 16px 10px;flex-shrink:0;border-bottom:1px solid var(--border);">
+      <div class="fb-label">AgentFlow · release-pipeline@v12</div>
+      <div class="flow-steps">
+        <div class="flow-node"><span class="fn-dot done">✓</span>拉取依赖</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node"><span class="fn-dot done">✓</span>单元测试</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node cur"><span class="fn-dot running">▶</span>构建镜像</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node"><span class="fn-dot pending">4</span>部署预发·审查</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node"><span class="fn-dot pending">5</span>灰度生产</div>
+      </div>
     </div>
 
     <!-- 聊天视图 -->
