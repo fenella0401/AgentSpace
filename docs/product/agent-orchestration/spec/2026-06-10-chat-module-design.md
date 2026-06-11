@@ -100,7 +100,71 @@
 
 ### 3.2 对话事件流（SSE）
 
-编排层把 Agent Core 的 SSE 事件透传给前端：thinking / message / tool_use / tool_result / stdout / stderr / session.completed / session.failed / session.aborted / session.timeout。事件基座字段含 `eventId` / `eventType` / `sequence` / `timestamp`，支持断线重连按 `sequence` 续传。
+#### 建连
+
+前端在发消息后，建立 SSE 连接以持续接收执行事件：
+
+`GET /conversations/{id}/events?lastSequence=xxx`
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `lastSequence` | long | 否 | 断线重连时传入上次收到的最末 `sequence`，编排层从该位置之后续传 |
+
+编排层收到请求后，向 Agent Core `GET /sessions/{sessionId}/chat` 建连，将 Agent 执行事件**透传**给前端 SSE 流。编排层不做事件内容变换，仅做归属校验（确认事件 `sessionId` 与 conversation 映射一致）。
+
+#### 事件格式
+
+```text
+event: thinking
+data: {"eventId":"evt-001","eventType":"thinking","sessionId":"s-123","sequence":1,"timestamp":"...","payload":{"content":"分析中…"}}
+
+event: tool_use
+data: {"eventId":"evt-002","eventType":"tool_use","sessionId":"s-123","sequence":2,"timestamp":"...","payload":{"tool":"read_file","input":{"path":"src/a.ts"}}}
+
+event: tool_result
+data: {"eventId":"evt-003","eventType":"tool_result","sessionId":"s-123","sequence":3,"timestamp":"...","payload":{"output":"…"}}
+
+event: message
+data: {"eventId":"evt-004","eventType":"message","sessionId":"s-123","sequence":4,"timestamp":"...","payload":{"content":"已完成修改"}}
+
+event: session.completed
+data: {"eventId":"evt-005","eventType":"session.completed","sessionId":"s-123","sequence":5,"timestamp":"...","payload":{"summary":"修复了 token 刷新","commitSha":"a1b2c3d","artifactRefs":[],"sessionRef":"srf-456"}}
+```
+
+基座字段统一：`eventId`（去重）、`eventType`、`sessionId`、`sequence`（递增，断线重连游标）、`timestamp`、`payload`（按类型不同）。
+
+#### 前端处理
+
+- 建连后监听 SSE `message` 事件，按 `eventType` 分发渲染：`thinking`→灰字、`message`→气泡、`tool_use/tool_result`→折叠工具卡片、`session.completed/session.failed`→本轮结束、`session.aborted/session.timeout`→错误气泡
+- 收到 `session.completed` 或 `session.failed` 后关闭 SSE 连接
+- **断线重连**：记录最后收到的 `sequence`，重建 SSE 时传 `lastSequence`，编排层续传
+
+#### 编排层与 Agent Core 的衔接
+
+```text
+前端                             编排层                          Agent Core
+ │  POST /conversations             │                               │
+ │  (content, projectId,...)        │                               │
+ │─────────────────────────────────►│                               │
+ │                                  │  POST /sessions               │
+ │                                  │  (首轮) 或复用已有 session      │
+ │                                  │──────────────────────────────►│
+ │                                  │                               │
+ │  GET /conversations/{id}/events  │                               │
+ │─────────────────────────────────►│                               │
+ │                                  │  GET /sessions/{id}/chat      │
+ │                                  │  (prompt)                     │
+ │                                  │──────────────────────────────►│
+ │                                  │                               │
+ │  SSE: thinking                   │  SSE: thinking                 │
+ │◄─────────────────────────────────│◄──────────────────────────────│
+ │  SSE: tool_use                   │  SSE: tool_use                 │
+ │◄─────────────────────────────────│◄──────────────────────────────│
+ │  SSE: session.completed          │  SSE: session.completed        │
+ │◄─────────────────────────────────│◄──────────────────────────────│
+```
+
+编排层是**透明代理**——不缓存事件、不转换内容、不做语义理解。唯一的编排层逻辑：将前端 `conversationId` 映射为 Agent Core `sessionId`，并发起/续接 session 对话。
 
 ### 3.3 中止当前对话
 
