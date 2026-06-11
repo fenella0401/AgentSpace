@@ -85,6 +85,23 @@
   .conv-item .caret { font-size: 10px; color: var(--text-sub); transition: transform .15s; }
   .conv-item.expanded .caret { transform: rotate(90deg); }
 
+  /* 列表项 agent 标识 */
+  .agent-badge { font-size: 10px; padding: 1px 5px; border-radius: 4px; background: #f3eefc; color: #7c3aed; }
+
+  /* 新建对话弹窗 */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .modal-overlay.hidden { display: none; }
+  .modal { background: var(--panel); border-radius: 12px; width: 420px; box-shadow: 0 8px 30px rgba(0,0,0,.15); overflow: hidden; }
+  .modal .m-head { padding: 16px 20px; font-size: 15px; font-weight: 600; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .modal .m-head .close { cursor: pointer; color: var(--text-sub); font-size: 18px; }
+  .modal .m-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+  .modal .m-body label { font-size: 12px; color: var(--text-sub); display: flex; flex-direction: column; gap: 4px; }
+  .modal .m-body input, .modal .m-body select { border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; font-size: 13px; }
+  .modal .m-foot { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+  .modal .m-foot button { padding: 7px 18px; border-radius: 7px; font-size: 13px; cursor: pointer; }
+  .btn-cancel { background: #fff; border: 1px solid var(--border); }
+  .btn-confirm { background: var(--accent); color: #fff; border: none; }
+
   /* ---- 中：对话详情 + 输入 ---- */
   .chat-col { background: var(--bg); }
   .chat-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
@@ -222,17 +239,17 @@
   <div class="col conv-col">
     <div class="panel-head">对话列表</div>
     <div class="conv-toolbar">
-      <button class="btn-new">+ 新建对话</button>
+      <button class="btn-new" onclick="openModal()">+ 新建对话</button>
     </div>
     <div class="conv-list">
       <div class="group-label">进行中 <span class="count">(2)</span></div>
       <div class="conv-item active" onclick="showView('chat', this)">
         <div class="title">修复登录页 token 刷新</div>
-        <div class="meta"><span class="dot running"></span>执行中 · 刚刚 <span class="type-tag chat">聊天</span></div>
+        <div class="meta"><span class="dot running"></span>执行中 · 刚刚 <span class="agent-badge">claude-code</span> <span class="type-tag chat">聊天</span></div>
       </div>
       <div class="conv-item expanded" id="wfConv">
         <div class="title" onclick="showView('wf', this.parentNode)"><span class="caret" onclick="event.stopPropagation(); toggleSteps(event)">▸</span> 发布流水线：v2.3 上线</div>
-        <div class="meta" onclick="showView('wf', this.parentNode)"><span class="dot running"></span>执行中 · 1h <span class="type-tag wf">工作流</span></div>
+        <div class="meta" onclick="showView('wf', this.parentNode)"><span class="dot running"></span>执行中 · 1h <span class="agent-badge">claude-code</span> <span class="type-tag wf">工作流</span></div>
       </div>
       <div class="conv-steps" id="wfConvSteps">
         <div class="conv-step" onclick="showStep('1·拉取代码并安装依赖','done',this)"><span class="cs-dot done">✓</span>1 · 拉取代码并安装依赖</div>
@@ -244,20 +261,20 @@
       <div class="group-label">已完成 <span class="count">(3)</span></div>
       <div class="conv-item" onclick="showView('chat', this)">
         <div class="title">重构用户模块的鉴权中间件</div>
-        <div class="meta"><span class="dot done"></span>已完成 · 昨天 <span class="type-tag chat">聊天</span></div>
+        <div class="meta"><span class="dot done"></span>已完成 · 昨天 <span class="agent-badge">claude-code</span> <span class="type-tag chat">聊天</span></div>
       </div>
       <div class="conv-item" onclick="showView('chat', this)">
         <div class="title">解释一下这段正则</div>
-        <div class="meta"><span class="dot done"></span>已完成 · 2天前 <span class="type-tag chat">聊天</span></div>
+        <div class="meta"><span class="dot done"></span>已完成 · 2天前 <span class="agent-badge">aider</span> <span class="type-tag chat">聊天</span></div>
       </div>
       <div class="conv-item" onclick="showView('wf', this)">
         <div class="title">每日依赖安全扫描</div>
-        <div class="meta"><span class="dot done"></span>已完成 · 3天前 <span class="type-tag wf">工作流</span></div>
+        <div class="meta"><span class="dot done"></span>已完成 · 3天前 <span class="agent-badge">claude-code</span> <span class="type-tag wf">工作流</span></div>
       </div>
       <div class="group-label">失败 <span class="count">(1)</span></div>
       <div class="conv-item" onclick="showView('chat', this)">
         <div class="title">迁移数据库到 PG</div>
-        <div class="meta"><span class="dot failed"></span>失败 · 3天前 <span class="type-tag chat">聊天</span></div>
+        <div class="meta"><span class="dot failed"></span>失败 · 3天前 <span class="agent-badge">open-code</span> <span class="type-tag chat">聊天</span></div>
       </div>
     </div>
   </div>
@@ -423,6 +440,31 @@ Step 8/14 : RUN npm run build …</div>
   </div>
 
 </div>
+
+<!-- 新建对话弹窗 -->
+<div class="modal-overlay hidden" id="newConvModal">
+  <div class="modal">
+    <div class="m-head">新建对话 <span class="close" onclick="closeModal()">✕</span></div>
+    <div class="m-body">
+      <label>会话名称 <input type="text" placeholder="可选，发送首条消息后自动生成"></label>
+      <label>选择 Agent <select>
+        <option>claude-code</option>
+        <option>open-code</option>
+        <option>aider</option>
+      </select></label>
+      <label>项目 <select>
+        <option>my-web-app</option>
+        <option>backend-api</option>
+        <option>无项目（纯对话）</option>
+      </select></label>
+    </div>
+    <div class="m-foot">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-confirm" onclick="closeModal()">开始对话</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // 每个 step 的对话内容（演示）
   const stepChats = {
@@ -453,6 +495,9 @@ Step 8/14 : RUN npm run build …</div>
     document.getElementById('centerTitle').innerHTML =
       '发布流水线：v2.3 上线 <span class="sub">step · ' + key.split('·')[1] + '</span>';
   }
+
+  function openModal() { document.getElementById('newConvModal').classList.remove('hidden'); }
+  function closeModal() { document.getElementById('newConvModal').classList.add('hidden'); }
 
   function toggleSteps(e) {
     const conv = document.getElementById('wfConv');
