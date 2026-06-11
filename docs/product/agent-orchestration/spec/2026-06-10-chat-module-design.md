@@ -82,41 +82,33 @@
 
 > 编排层对前端暴露的聊天会话 API。编排层内部再调 Agent Core 的 session 接口（见沙箱设计）。
 
-### 3.1 创建会话
+### 3.1 发起对话（创建会话 + 发送消息合二为一）
 
 `POST /conversations`
 
+首次调用创建 conversation，再次调用续聊。编排层内部：首次时初始化 session（调 Agent Core `POST /sessions`），续聊时复用已有 session 发 `GET /sessions/{id}/chat`。
+
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `title` | string | 否 | 会话标题，不传则首条消息后自动生成 |
+| `conversationId` | string | 否 | 续聊时传入；新对话不传，编排层自动创建 |
+| `content` | string | 是 | 用户输入 |
+| `title` | string | 否 | 会话标题，不传则首条消息后自动生成（仅首次生效）|
 | `projectId` | string | 否 | 关联项目（决定 repo/harness 上下文）；不传为无项目纯对话 |
 | `agentRef` | string | 否 | 指定 agent；不传用项目默认 |
 
-返回：`conversationId`、`status`、`createdAt`。
+返回：`conversationId`、`messageId`、`status` + SSE 流地址。编排层据此向 Agent Core 发起 session 对话并透传 SSE 事件。
 
-### 3.2 发送消息（发起一轮对话）
-
-`POST /conversations/{id}/messages`
-
-| 字段 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| `content` | string | 是 | 用户输入 |
-
-返回：`messageId` + SSE 订阅地址（或直接升级为 SSE 响应）。编排层据此向 Agent Core 发起 session 对话（首轮创建 session，续聊复用）。
-
-### 3.3 订阅对话事件流
-
-`GET /conversations/{id}/stream`（SSE）
+### 3.2 对话事件流（SSE）
 
 编排层把 Agent Core 的 SSE 事件透传给前端：thinking / message / tool_use / tool_result / stdout / stderr / session.completed / session.failed / session.aborted / session.timeout。事件基座字段含 `eventId` / `eventType` / `sequence` / `timestamp`，支持断线重连按 `sequence` 续传。
 
-### 3.4 中止当前对话
+### 3.3 中止当前对话
 
 `POST /conversations/{id}/abort`
 
 停止本轮 agent 执行，保留会话可续聊。代理到 Agent Core 的 abort。
 
-### 3.5 查看本轮改动
+### 3.4 查看本轮改动
 
 `GET /conversations/{id}/changes`
 
@@ -126,7 +118,7 @@
 
 代理到 Agent Core 的 changes 接口。
 
-### 3.6 会话列表
+### 3.5 会话列表
 
 `GET /conversations`
 
@@ -149,7 +141,7 @@
 
 > 搜索、聚合、类型过滤为后续能力，本期不做（见 §5）。
 
-### 3.7 会话详情
+### 3.6 会话详情
 
 `GET /conversations/{id}`
 
@@ -164,7 +156,7 @@
 | `eventSource` | object | 仅事件触发：`{ type, summary, ... }`，信息栏「事件来源」字段展示 |
 | `messages` | object[] | 对话历史：多轮消息、工具调用、改动摘要、各轮终态结果 |
 
-### 3.8 查看 step 对话（workflow）
+### 3.7 查看 step 对话（workflow）
 
 `GET /conversations/{id}/steps/{stepId}/messages`
 
@@ -172,7 +164,7 @@
 
 > 普通聊天会话无 step，直接用 §3.7 的 `messages`。
 
-### 3.9 会话管理
+### 3.8 会话管理
 
 - `PATCH /conversations/{id}`：重命名（`title`）；
 - `POST /conversations/{id}/archive`：归档；
