@@ -53,8 +53,8 @@
 ### 2.1 左栏：会话列表
 
 1. 进入页面 → 拉取会话列表（`GET /conversations`，分页），按状态分组（进行中/已完成/失败），默认选中最近一条或停留在「新对话」；
-2. 列表项显示标题、最近活跃时间、状态点、类型标签（聊天/工作流）；
-3. **workflow 会话可展开**：点标题前箭头展开，内嵌显示 AgentFlow 每个 step（带状态点）；点某 step → 中间区以该 step 的 `conversationId` 查询对话（`GET /conversations/{stepConversationId}`）
+2. 列表项显示标题、最近活跃时间、状态点、类型标签（临时会话/事件任务/定时任务）；
+3. **step 型会话可展开**（`event` / `scheduled` 类型）：点标题前箭头展开，内嵌显示 AgentFlow 每个 step（带状态点）；点某 step → 中间区以该 step 的 `conversationId` 查询对话（`GET /conversations/{stepConversationId}`）
 4. 顶部「+ 新建对话」→ 中间区切到空白新对话（首条消息发送时再建 conversation，见 §6#1）；
 5. 列表项 hover 出现重命名、归档、删除。
 
@@ -65,7 +65,7 @@
 **顶部信息栏**（网格布局）展示会话概览：
 
 - 通用字段：会话名称、类型、关联任务、状态、项目、发起人、开始时间、结束人；
-- workflow 额外：当前步骤、所属 AgentFlow、事件来源；信息栏内渲染 **AgentFlow 横向流程图**（各 step 节点+状态，当前步骤高亮）。
+- `event` / `scheduled` 类型额外：当前步骤、所属 AgentFlow、事件来源；信息栏内渲染 **AgentFlow 横向流程图**（各 step 节点+状态，当前步骤高亮）。
 
 信息栏下方切换两个视图：
 
@@ -158,8 +158,8 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `type` | enum | 否 | 预留：`chat`（默认）/ `workflow` / `all`（见 §5）|
-| `status` | enum | 否 | 进行中/已完成/失败 |
+| `type` | enum | 否 | 对话类型：`ad-hoc`（临时会话）/ `event`（事件任务）/ `scheduled`（定时任务）。默认 `ad-hoc`|
+| `status` | enum | 否 | running / waiting_approval / done / failed |
 | `cursor` / `limit` | - | 否 | 分页 |
 
 返回：会话列表 + 分页游标。每个列表项：
@@ -168,10 +168,10 @@
 |---|---|---|
 | `conversationId` | string | 会话标识 |
 | `title` | string | 会话名称 |
-| `type` | enum | `chat` / `workflow` |
-| `status` | enum | running / completed / failed |
-| `lastActiveAt` | datetime | 最近活跃时间 |
-| `steps` | object[] | 仅 `workflow`：step 列表，每项 `stepId` / `name` / `status` / `order` / `conversationId`，供左栏展开和查询对话 |
+| `type` | enum | `ad-hoc` / `event` / `scheduled` |
+| `status` | enum | running / waiting_approval / done / failed |
+| `lastActiveAt` | datetime | 最近活跃时间（列表按此倒序排列）|
+| `steps` | object[] | `event` / `scheduled` 类型时：step 列表，每项 `stepId` / `name` / `status` / `order` / `conversationId`，供左栏展开和查询对话 |
 
 > 搜索、聚合、类型过滤为后续能力，本期不做（见 §5）。
 
@@ -185,8 +185,8 @@
 |---|---|---|
 | `conversationId` / `title` / `type` / `status` | - | 基本信息 |
 | `projectId` / `agentRuntime` / `createdBy` / `startedAt` / `endedBy` | - | 概览字段（前端信息栏展示）|
-| `runId` | string | 关联任务（workflow 时有）|
-| `agentFlow` | object | 仅 workflow：`{ flowRef, version, steps[] }`，steps 含名称/状态/`conversationId`。每 step 即独立 conversation，对话用 `GET /conversations/{stepConversationId}` 查询 |
+| `runId` | string | 关联任务（`event` / `scheduled` 时有）|
+| `agentFlow` | object | 仅 `event` / `scheduled` 类型：`{ flowRef, version, steps[] }`，steps 含名称/状态/`conversationId`。每 step 即独立 conversation，对话用 `GET /conversations/{stepConversationId}` 查询 |
 | `eventSource` | object | 仅事件触发：`{ type, summary, ... }`，信息栏「事件来源」字段展示 |
 | `messages` | object[] | 对话历史：多轮消息、工具调用、改动摘要、各轮终态结果 |
 
@@ -210,16 +210,11 @@
 | 断线重连 | P1 | SSE 按 sequence 续传 |
 | 会话数据保留 | P1 | 遵循 Agent Core 保留策略（用户级最近 50 条 + 超 15 天，见沙箱设计）|
 
-## 5. 工作流任务扩展预留
+## 5. 对话类型
 
-当前只做聊天会话，但为后续把工作流任务也纳入「会话记录」做如下预留，避免将来改数据模型和接口：
+对话按 `type` 分为三类：**临时会话**（`ad-hoc`）即席创建、**事件任务**（`event`）由外部事件触发、**定时任务**（`scheduled`）按计划执行。列表统一按时间排序，`event` / `scheduled` 类型内嵌步骤展开。
 
-- **统一 `type` 字段**：conversation 列表项带 `type`（`chat` / `workflow`），列表接口 `GET /conversations?type=` 已预留筛选；会话记录页左栏筛选器预留「全部 / 聊天 / 工作流任务」选项；
-- **统一列表视图**：工作流 run 未来作为一种 `type=workflow` 的条目混入同一列表（按时间排序），左栏交互不变；
-- **详情页分流**：右侧详情按 `type` 渲染——`chat` 走对话回放，`workflow` 走 step/run 视图（后续设计），用同一个详情路由不同组件；
-- **edge 区分**：聊天用 `POST /conversations` 即席创建；工作流由模板触发 run，仅在记录页只读展示，不在本模块新建。
-
-> 本次不实现工作流相关页面与逻辑，仅保证数据模型（`type`）、列表接口（`type` 参数）、页面骨架（筛选器选项位）三处可平滑扩展。
+> `type` 枚举、列表接口、页面筛选器均为三类设计，无需后续改造。
 
 ## 6. 待确认 / 后续
 
