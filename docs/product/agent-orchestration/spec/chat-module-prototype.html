@@ -77,22 +77,6 @@
   .dot.done { background: var(--green); }
   .dot.failed { background: var(--red); }
 
-  /* 左栏 workflow 会话的内嵌 step 列表 */
-  .conv-steps { background: #fbfcfd; border-left: 2px solid var(--accent-soft); }
-  .conv-step {
-    padding: 6px 14px 6px 30px; font-size: 12px; color: var(--text-sub);
-    display: flex; align-items: center; gap: 7px; cursor: pointer;
-  }
-  .conv-step:hover { background: var(--bg); }
-  .conv-step.cur { color: var(--text); font-weight: 500; }
-  .cs-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; color: #fff; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-  .cs-dot.done { background: var(--green); }
-  .cs-dot.running { background: var(--amber); }
-  .cs-dot.pending { background: #cbd2da; }
-  .cs-dot.failed { background: var(--red); }
-  .conv-item .caret { font-size: 10px; color: var(--text-sub); transition: transform .15s; }
-  .conv-item.expanded .caret { transform: rotate(90deg); }
-
   /* 列表项 agent 标识 */
   .agent-badge { font-size: 10px; padding: 1px 5px; border-radius: 4px; background: #f3eefc; color: #7c3aed; }
 
@@ -266,16 +250,9 @@
         <div class="title">修复登录页 token 刷新</div>
         <div class="meta"><span class="dot running"></span>10 分钟前 <span class="agent-badge">claude-code</span> <span class="type-tag chat">临时会话</span></div>
       </div>
-      <div class="conv-item expanded" id="wfConv" data-status="running">
-        <div class="title" onclick="showView('wf', this.parentNode)"><span class="caret" onclick="event.stopPropagation(); toggleSteps(event)">▸</span> 发布流水线：v2.3 上线</div>
-        <div class="meta" onclick="showView('wf', this.parentNode)"><span class="dot running"></span>1 小时前 <span class="agent-badge">claude-code</span> <span class="type-tag event">事件任务</span></div>
-      </div>
-      <div class="conv-steps" id="wfConvSteps">
-        <div class="conv-step" onclick="showStep('1·拉取代码并安装依赖','done',this)"><span class="cs-dot done">✓</span>1 · 拉取代码并安装依赖</div>
-        <div class="conv-step" onclick="showStep('2·运行单元测试','done',this)"><span class="cs-dot done">✓</span>2 · 运行单元测试</div>
-        <div class="conv-step cur" onclick="showStep('3·构建镜像并推送','running',this)"><span class="cs-dot running">▶</span>3 · 构建镜像并推送</div>
-        <div class="conv-step" onclick="showStep('4·部署预发 + 人工审查','pending',this)"><span class="cs-dot pending">4</span>4 · 部署预发 + 人工审查</div>
-        <div class="conv-step" onclick="showStep('5·灰度发布生产','pending',this)"><span class="cs-dot pending">5</span>5 · 灰度发布生产</div>
+      <div class="conv-item" id="wfConv" data-status="running" onclick="showView('wf', this)">
+        <div class="title">发布流水线：v2.3 上线</div>
+        <div class="meta"><span class="dot running"></span>1 小时前 <span class="agent-badge">claude-code</span> <span class="type-tag event">事件任务</span></div>
       </div>
       <!-- waiting approval -->
       <div class="conv-item waiting" data-status="waiting" onclick="showView('chat', this)">
