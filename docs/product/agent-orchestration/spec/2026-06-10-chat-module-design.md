@@ -54,7 +54,7 @@
 
 1. 进入页面 → 拉取会话列表（`GET /conversations`，分页），按状态分组（进行中/已完成/失败），默认选中最近一条或停留在「新对话」；
 2. 列表项显示标题、最近活跃时间、状态点、类型标签（聊天/工作流）；
-3. **workflow 会话可展开**：点标题前箭头展开，内嵌显示 AgentFlow 每个 step（带状态点）；点某 step → 中间区加载该 step 的对话（`GET /conversations/{id}/steps/{stepId}/messages`）；
+3. **workflow 会话可展开**：点标题前箭头展开，内嵌显示 AgentFlow 每个 step（带状态点）；点某 step → 中间区以该 step 的 `conversationId` 查询对话（`GET /conversations/{stepConversationId}`）
 4. 顶部「+ 新建对话」→ 中间区切到空白新对话（首条消息发送时再建 conversation，见 §6#1）；
 5. 列表项 hover 出现重命名、归档、删除。
 
@@ -137,7 +137,7 @@
 | `type` | enum | `chat` / `workflow` |
 | `status` | enum | running / completed / failed |
 | `lastActiveAt` | datetime | 最近活跃时间 |
-| `steps` | object[] | 仅 `workflow`：step 列表，每项 `stepId` / `name` / `status` / `order`，供左栏展开展示 |
+| `steps` | object[] | 仅 `workflow`：step 列表，每项 `stepId` / `name` / `status` / `order` / `conversationId`，供左栏展开和查询对话 |
 
 > 搜索、聚合、类型过滤为后续能力，本期不做（见 §5）。
 
@@ -152,19 +152,11 @@
 | `conversationId` / `title` / `type` / `status` | - | 基本信息 |
 | `projectId` / `agentRuntime` / `createdBy` / `startedAt` / `endedBy` | - | 概览字段（前端信息栏展示）|
 | `runId` | string | 关联任务（workflow 时有）|
-| `agentFlow` | object | 仅 workflow：`{ flowRef, version, steps[] }`，steps 含名称与状态，供横向流程图与当前步骤展示 |
+| `agentFlow` | object | 仅 workflow：`{ flowRef, version, steps[] }`，steps 含名称/状态/`conversationId`。每 step 即独立 conversation，对话用 `GET /conversations/{stepConversationId}` 查询 |
 | `eventSource` | object | 仅事件触发：`{ type, summary, ... }`，信息栏「事件来源」字段展示 |
 | `messages` | object[] | 对话历史：多轮消息、工具调用、改动摘要、各轮终态结果 |
 
-### 3.7 查看 step 对话（workflow）
-
-`GET /conversations/{id}/steps/{stepId}/messages`
-
-工作流的每个 step 是独立 session，有自己的对话。左栏展开 workflow 后点击某 step → 拉取该 step 的对话历史，中间区渲染。返回结构同 §3.7 的 `messages`，附该 step 的状态与产出。
-
-> 普通聊天会话无 step，直接用 §3.7 的 `messages`。
-
-### 3.8 会话管理
+### 3.7 会话管理
 
 - `PATCH /conversations/{id}`：重命名（`title`）；
 - `POST /conversations/{id}/archive`：归档；
