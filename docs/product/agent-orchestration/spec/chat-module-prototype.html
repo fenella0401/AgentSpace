@@ -165,8 +165,8 @@
   .badge-num { background: var(--accent); color: #fff; border-radius: 9px; padding: 1px 7px; font-size: 11px; }
 
   /* 放大弹窗 */
-  .zoom-btn { cursor: pointer; color: var(--text-sub); font-size: 16px; background: none; border: none; padding: 0 2px; }
-  .zoom-btn:hover { color: var(--accent); }
+  .zoom-btn { cursor: pointer; color: var(--accent); font-size: 12px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 4px; padding: 2px 8px; margin-left: 6px; }
+  .zoom-btn:hover { background: var(--accent); color: #fff; }
   .zoom-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; display: flex; align-items: center; justify-content: center; }
   .zoom-overlay.hidden { display: none; }
   .zoom-box { background: var(--panel); border-radius: 10px; width: 80vw; height: 85vh; display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0,0,0,.2); }
@@ -439,7 +439,7 @@ Step 8/14 : RUN npm run build …</div>
       </div>
     </div>
     <div class="file-detail-pane">
-      <div class="panel-head">src/auth/token.ts <span class="sub">+18 -4</span> <button class="zoom-btn" onclick="openZoom()" title="放大查看">⛶</button></div>
+      <div class="panel-head">src/auth/token.ts <span class="sub">+18 -4</span> <button class="zoom-btn" onclick="openZoom()" title="放大查看">🔍 放大</button></div>
       <div class="diff" id="fileDiff">
         <div class="line hunk">@@ -12,7 +12,9 @@ export class TokenManager {</div>
         <div class="line ctx">   async getToken() {</div>
