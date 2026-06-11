@@ -94,7 +94,7 @@
 | `content` | string | 是 | 用户输入 |
 | `title` | string | 否 | 会话标题，不传则首条消息后自动生成（仅首次生效）|
 | `projectId` | string | 是 | 所属项目 |
-| `agentRef` | string | 否 | 指定 agent；不传用项目默认 |
+| `agentRef` | string | 否 | 指定 agent；仅首次生效（对话创建后不可更改），不传用项目默认 |
 | `lastSequence` | long | 否 | 断线重连续传游标 |
 
 #### SSE 事件流

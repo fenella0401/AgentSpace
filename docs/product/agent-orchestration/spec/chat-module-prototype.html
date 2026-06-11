@@ -123,7 +123,9 @@
   .chat-input .opts { font-size: 11px; color: var(--text-sub); }
   .chat-opts { display: flex; align-items: center; gap: 6px; padding: 0 12px 8px; }
   .chat-opts .sel-label { font-size: 11px; color: var(--text-sub); }
+  .chat-opts .sel-hint { font-size: 10px; color: var(--text-sub); }
   .chat-opts select { border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 12px; color: var(--text); background: #fff; margin-right: 4px; }
+  .chat-opts select:disabled { opacity: .5; }
   .btn-send { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 7px 18px; cursor: pointer; font-size: 13px; }
 
   /* ---- 右：文件列表 + 文件详情 ---- */
@@ -373,7 +375,8 @@ Step 8/14 : RUN npm run build …</div>
     <div class="chat-input">
       <div class="chat-opts">
         <span class="sel-label">Agent</span>
-        <select class="agent-sel"><option>claude-code</option><option>open-code</option><option>aider</option></select>
+        <select class="agent-sel" id="agentSel"><option>claude-code</option><option>open-code</option><option>aider</option></select>
+        <span class="sel-hint" id="agentHint">创建对话后不可更改</span>
       </div>
       <div class="box">
         <textarea placeholder="输入消息…（Enter 发送）"></textarea>
@@ -479,6 +482,9 @@ Step 8/14 : RUN npm run build …</div>
     document.getElementById('infoChat').innerHTML = '<div class="info-meta"><div class="item"><span>会话名称</span><b>新对话</b></div><div class="item"><span>类型</span><b>聊天</b></div><div class="item"><span>状态</span><b>—</b></div><div class="item"><span>项目</span><b>—</b></div><div class="item"><span>发起人</span><b>—</b></div><div class="item"><span>开始时间</span><b>—</b></div></div>';
     document.getElementById('infoWf').style.display = 'none';
     document.getElementById('centerTitle').innerHTML = '新对话 <span class="sub"></span>';
+    // agent 可选择
+    document.getElementById('agentSel').disabled = false;
+    document.getElementById('agentHint').textContent = '';
   }
 
   function toggleSteps(e) {
@@ -509,6 +515,9 @@ Step 8/14 : RUN npm run build …</div>
       infoChat.style.display = 'block';
       infoWf.style.display = 'none';
       title.innerHTML = (el ? el.querySelector('.title').innerText : '修复登录页 token 刷新') + ' <span class="sub">claude-code · my-web-app</span>';
+      // 已有对话不可更改 agent
+      document.getElementById('agentSel').disabled = true;
+      document.getElementById('agentHint').textContent = '已创建，不可更改';
     }
   }
 </script>
