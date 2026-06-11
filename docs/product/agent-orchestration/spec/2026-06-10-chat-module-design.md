@@ -54,7 +54,7 @@
 
 1. 进入页面 → 拉取会话列表（`GET /conversations`，分页），按状态分组（进行中/已完成/失败），默认选中最近一条或停留在「新对话」；
 2. 列表项显示标题、最近活跃时间、状态点、类型标签（临时会话/事件任务/定时任务）；
-3. **step 型会话可展开**（`event` / `scheduled` 类型）：点标题前箭头展开，内嵌显示 AgentFlow 每个 step（带状态点）；点某 step → 中间区以该 step 的 `conversationId` 查询对话（`GET /conversations/{stepConversationId}`）
+3. **step 型会话可展开**（`event` / `scheduled` 类型）：点标题前箭头展开，内嵌显示 AgentFlow 每个 step（带状态点）；step 状态通过 `GET /conversations/{id}/poll` 定期轮询刷新（建议间隔 5~10s）；点某 step → 中间区以该 step 的 `conversationId` 查询对话（`GET /conversations/{stepConversationId}`）
 4. 顶部「+ 新建对话」→ 中间区切到空白新对话（首条消息发送时再建 conversation，见 §6#1）；
 5. 列表项 hover 出现重命名、归档、删除。
 
@@ -217,7 +217,33 @@ data: {"type":"message_stop"}
 
 > 搜索、聚合、类型过滤为后续能力，本期不做（见 §5）。
 
-### 3.5 会话详情
+### 3.5 轮询查询（workflow 进度）
+
+`GET /conversations/{id}/poll`
+
+供前端**按固定间隔轮询** conversation 运行状态。常规聊天走 SSE 实时流，轮询接口主要用于：
+
+- **workflow 场景**：前端未保持 SSE 长连接时，快速获取各 step 最新状态以刷新左栏和内嵌步骤进度；
+- **断线补偿**：SSE 意外断开后，拉取当前状态同步 UI。
+
+**Query 参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `since` | datetime | 否 | 增量查询：返回该时间之后发生状态变化的 step，用于省带宽的轻量轮询 |
+
+**Response：**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `conversationId` / `title` / `type` / `status` | - | 会话基本信息 |
+| `progress` | object | 仅 `event` / `scheduled`：`{ completed, total }` 进度计数 |
+| `steps` | object[] | step 列表，每项 `stepId` / `name` / `status` / `order` / `conversationId`，供左栏刷新状态点 |
+| `activeStep` | string | 当前执行中的 stepId（无则为 null）|
+
+> 建议轮询间隔：**运行中 5~10s，待审批 10~15s，已完成/失败停止轮询**。
+
+### 3.6 会话详情
 
 `GET /conversations/{id}`
 
@@ -232,7 +258,7 @@ data: {"type":"message_stop"}
 | `eventSource` | object | 仅事件触发：`{ type, summary, ... }`，信息栏「事件来源」字段展示 |
 | `messages` | object[] | 对话历史：多轮消息、工具调用、改动摘要、各轮终态结果 |
 
-### 3.6 会话管理
+### 3.7 会话管理
 
 - `PATCH /conversations/{id}`：重命名（`title`）；
 - `POST /conversations/{id}/archive`：归档；
