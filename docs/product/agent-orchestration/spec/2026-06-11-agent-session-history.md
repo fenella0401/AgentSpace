@@ -16,7 +16,7 @@
 
 1. 选中会话 → 右栏加载概览信息（网格布局）、中间栏加载对话历史；
 2. `event` / `scheduled` 类型：中间栏标题下方渲染 AgentFlow 横向流程图，各 step 带状态节点（✓已完成 / ▶进行中 / ◻待执行），当前步骤高亮；
-3. step 状态通过 `GET /conversations/{id}/poll` 定期轮询刷新。
+3. step 状态通过 `GET /conversations/{id}` 定期轮询刷新（取 `agentFlow` 字段）。
 
 **轮询机制：**
 - workflow 会话选中后启动轮询；
@@ -45,7 +45,7 @@
         │
         ├─ 若 type = event / scheduled
         │    → 中间栏渲染 AgentFlow 横向流程（从 agentFlow.steps 取初始状态）
-        │    → 启动轮询定时器: GET /conversations/{id}/poll
+        │    → 启动轮询定时器: GET /conversations/{id}（取 agentFlow 字段）
         │    → 每次轮询更新 step 状态节点
         │    → 状态变为 done / failed 时停止轮询
         │
@@ -66,7 +66,7 @@
 
 **编排层：**
 - conversation 元数据管理：CRUD 接口 + 列表查询；
-- poll 接口：从 Agent Core 获取 session 状态，聚合为 step 状态返回。
+- 会话详情接口：返回完整 agentFlow 状态（含 steps / progress / activeStep），供前端轮询刷新。
 
 **Agent Core：**
 - session 状态查询、step 进度信息由 Agent Core session 接口提供。
@@ -95,21 +95,13 @@
 | `conversationId` / `title` / `type` / `status` | - | 基本信息 |
 | `projectId` / `agentRuntime` / `createdBy` / `startedAt` / `endedBy` | - | 概览字段 |
 | `runId` | string | 关联任务 |
-| `agentFlow` | object | `{ flowRef, version, steps[] }`，steps 含 `stepId` / `name` / `status` / `order` / `conversationId` |
+| `agentFlow` | object | `{ flowRef, version, steps[], progress: {completed, total}, activeStep }`。steps 含 `stepId` / `name` / `status` / `order` / `conversationId`；workflow 类型时 progress 与 activeStep 非空 |
 | `eventSource` | object | `{ type, summary }`，事件来源 |
 | `messages` | object[] | 对话历史 |
 
-### 5.3 轮询查询
+轮询刷新 AgentFlow 状态直接走会话详情接口，前端按固定间隔（运行中 5~10s，待审批 10~15s，完成/失败停止）拉取 `GET /conversations/{id}`，仅取 `agentFlow` 字段更新中间栏流程图。
 
-`GET /conversations/{id}/poll`
-
-| 参数 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| `since` | datetime | 否 | 增量：返回该时间后状态变化的 step |
-
-返回 `steps[]` + `progress`（`{ completed, total }`）+ `activeStep`。
-
-### 5.4 会话管理
+### 5.3 会话管理
 
 - `PATCH /conversations/{id}`（重命名）
 - `POST /conversations/{id}/archive`
