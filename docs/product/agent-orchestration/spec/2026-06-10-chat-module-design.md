@@ -93,7 +93,7 @@
 | `conversationId` | string | 否 | 续聊时传入；新对话不传，编排层自动创建 |
 | `content` | string | 是 | 用户输入 |
 | `title` | string | 否 | 会话标题，不传则首条消息后自动生成（仅首次生效）|
-| `projectId` | string | 否 | 关联项目（决定 repo/harness 上下文）；不传为无项目纯对话 |
+| `projectId` | string | 是 | 所属项目（决定 repo、harness 配置等执行上下文）|
 | `agentRef` | string | 否 | 指定 agent；不传用项目默认 |
 
 返回：`conversationId`、`messageId`、`status` + SSE 流地址。编排层据此向 Agent Core 发起 session 对话并透传 SSE 事件。
