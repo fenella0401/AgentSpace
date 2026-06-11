@@ -444,16 +444,6 @@ Step 8/14 : RUN npm run build …</div>
     '5·灰度发布生产': `<div class="thinking">step 5 · 灰度发布生产 — 待执行</div>`
   };
 
-  function showStep(key, state, el) {
-    document.querySelectorAll('.conv-step').forEach(s => s.classList.remove('cur'));
-    if (el) el.classList.add('cur');
-    // 确保在 wf 视图
-    showView('wf', document.getElementById('wfConv'), true);
-    const wf = document.getElementById('wfView');
-    wf.innerHTML = stepChats[key] || '';
-    document.getElementById('centerTitle').innerHTML =
-      '发布流水线：v2.3 上线 <span class="sub">step · ' + key.split('·')[1] + '</span>';
-  }
 
   function newConversation() {
     document.querySelectorAll('.conv-item').forEach(i => i.classList.remove('active'));
@@ -472,12 +462,6 @@ Step 8/14 : RUN npm run build …</div>
     document.getElementById('agentHint').textContent = '';
   }
 
-  function toggleSteps(e) {
-    const conv = document.getElementById('wfConv');
-    const steps = document.getElementById('wfConvSteps');
-    const expanded = conv.classList.toggle('expanded');
-    steps.style.display = expanded ? 'block' : 'none';
-  }
   function filterList(status, btn) {
     document.querySelectorAll('.status-tab').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');

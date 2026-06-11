@@ -52,7 +52,7 @@
 
 1. 进入页面 → 拉取会话列表（`GET /conversations`，分页），默认选中最近一条或停留在「新对话」；
 2. 列表项显示标题、最近活跃时间、状态点、类型标签（临时会话/事件任务/定时任务）；
-3. **step 型会话可展开**（`event` / `scheduled` 类型）：点标题前箭头展开，内嵌显示 AgentFlow 每个 step（带状态点）；step 状态通过 `GET /conversations/{id}/poll` 定期轮询刷新（建议间隔 5~10s）；点某 step → 中间区以该 step 的 `conversationId` 查询对话；
+3. 列表项按时间排序，不展开 step 细节；`event`/`scheduled` 类型的 step 状态通过 `GET /conversations/{id}/poll` 轮询反映在中间栏的 AgentFlow 横向流程中
 4. 顶部「+ 新建对话」→ 中间区切到空白新对话（首条消息发送时再建 conversation）；
 5. 列表项 hover 出现重命名、归档、删除。
 
@@ -219,7 +219,7 @@ data: {"type":"message_stop"}
 
 供前端**按固定间隔轮询** conversation 运行状态。常规聊天走 SSE 实时流，轮询接口主要用于：
 
-- **workflow 场景**：前端未保持 SSE 长连接时，快速获取各 step 最新状态以刷新左栏和内嵌步骤进度；
+- **workflow 场景**：前端未保持 SSE 长连接时，快速获取各 step 最新状态以刷新中间栏 AgentFlow 横向流程；
 - **断线补偿**：SSE 意外断开后，拉取当前状态同步 UI。
 
 **Query 参数：**
