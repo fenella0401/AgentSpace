@@ -99,41 +99,83 @@
 
 #### SSE 事件流
 
-| eventType | 说明 |
-|---|---|
-| `conversation.created` | 首次建连时返回 `conversationId` |
-| `thinking` / `message` | Agent 思考与回复（thinking 灰字、message 气泡）|
-| `tool_use` / `tool_result` | 工具调用（折叠卡片）|
-| `session.completed` | 执行成功（含 summary/commitSha/sessionRef）|
-| `session.failed` | 执行失败 |
-| `session.aborted` / `session.timeout` | 运行时异常 |
+消息格式遵循 Anthropic Messages Streaming 规范（业界标准 SSE 协议），每条事件为 `event:` + `data:` 行对，`data` 为 JSON 对象，内含 `type` 字段标识事件种类。
 
-事件基座：`eventId` / `eventType` / `sequence` / `timestamp` / `payload`。`sequence` 递增，断线重连贯 `lastSequence` 续传。
+##### 事件类型
+
+| SSE event | data.type | 说明 |
+|---|---|---|
+| `message_start` | `message_start` | 消息帧开始。首次建连时含 `conversationId`；`message.model` 标识运行时、`message.usage` 含初始 token 用量 |
+| `content_block_start` | `content_block_start` | 内容块开始。`content_block.type` 为 `text` / `tool_use` / `thinking`，`index` 自增 |
+| `content_block_delta` | `content_block_delta` | 增量内容。`delta.type` 区分：`text_delta`（文本）、`input_json_delta`（工具参数 JSON 片段）、`thinking_delta`（思考过程）|
+| `content_block_stop` | `content_block_stop` | 内容块结束 |
+| `message_delta` | `message_delta` | 消息终止信息：`delta.stop_reason`（`end_turn` / `tool_use` / `cancelled` / `error` / `timeout`）、`usage.output_tokens`、`payload` 含 summary / commitSha / artifactRefs / sessionRef |
+| `message_stop` | `message_stop` | 消息帧结束，本轮对话完成 |
+| `ping` | `ping` | 心跳保活 |
+
+##### 完整示例
+
+```text
+event: message_start
+data: {"type":"message_start","message":{"id":"msg_001","role":"assistant","model":"claude-code","content":[],"usage":{"input_tokens":0}},"conversationId":"conv-789"}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"分析中…"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","name":"read_file","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"path\":\"src/auth/token.ts\"}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: content_block_start
+data: {"type":"content_block_start","index":2,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":2,"delta":{"type":"text_delta","text":"已完成修改"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":2}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":128},"payload":{"summary":"修复了 token 刷新","commitSha":"a1b2c3d","artifactRefs":[],"sessionRef":"srf-456"}}
+
+event: message_stop
+data: {"type":"message_stop"}
+```
+
+##### 前端渲染映射
+
+| delta.type | 前端渲染 |
+|---|---|
+| `thinking_delta` | 灰字，折叠区域 |
+| `text_delta` | 正常消息气泡 |
+| `content_block` type=`tool_use` | 工具调用卡片（含 `name`），参数由 `input_json_delta` 拼接后展示 |
+| `message_delta` stop=`cancelled` / `error` / `timeout` | 错误气泡 |
+
+##### 断线重连
+
+`message_start` 事件含 `sequence` 字段（递增），前端记录最后收到的 `sequence`。断线后重连同一 URL 带 `lastSequence`，编排层从该位置续传后续事件。
 
 #### 编排层衔接
 
-```text
-前端                                    编排层                          Agent Core
- │  GET /conversations/chat              │                               │
- │  (content, projectId, agentRef)       │                               │
- │──────────────────────────────────────►│                               │
- │                                       │  POST /sessions（首次）        │
- │                                       │          GET /sessions/{id}/chat
- │  SSE: conversation.created            │                               │
- │◄──────────────────────────────────────│                               │
- │  SSE: thinking / tool_use / message   │  SSE: thinking/tool_use/message│
- │◄──────────────────────────────────────│◄──────────────────────────────│
- │  SSE: session.completed               │  SSE: session.completed        │
- │◄──────────────────────────────────────│◄──────────────────────────────│
-```
-
-编排层是**透明代理**——不缓存事件、不转换内容。唯一逻辑：首次建连创建 conversation + 初始化 session；后续携带 `conversationId` 时复用映射。
+编排层是**透明代理**——不缓存事件、不转换内容、不做语义理解。唯一逻辑：首次建连创建 conversation + 初始化 session（调 Agent Core），将 Agent Core 的执行事件按上述 SSE 格式透传给前端。
 
 #### 前端处理
 
-- 监听 SSE 按 `eventType` 分发；`conversation.created` 保存 conversationId；`session.completed/failed` 关闭连接
+- 监听 SSE 按 `data.type` 分发渲染；
+- `message_start` 保存 conversationId（首次），记录 model 信息展示；
+- `message_stop` 本轮结束，关闭连接；
 - 继续对话：重新发起同一 URL 带 `conversationId`
-- 断线重连：带 `lastSequence`
 
 ### 3.2 中止当前对话
 
