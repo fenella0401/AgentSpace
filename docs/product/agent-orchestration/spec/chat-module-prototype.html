@@ -48,8 +48,15 @@
     padding: 8px; font-size: 13px; cursor: pointer; font-weight: 500;
   }
   .search { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 12px; }
-  .filters { display: flex; gap: 6px; }
-  .filters select { flex: 1; border: 1px solid var(--border); border-radius: 6px; padding: 5px; font-size: 11px; color: var(--text-sub); background: #fff; }
+  .status-tabs { display: flex; gap: 0; }
+  .status-tab {
+    flex: 1; text-align: center; padding: 6px 0; font-size: 11px; cursor: pointer;
+    border-bottom: 2px solid transparent; color: var(--text-sub); background: none; border-top: none; border-left: none; border-right: none;
+  }
+  .status-tab:hover { color: var(--text); }
+  .status-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .status-tab .count { font-size: 10px; }
+  .conv-item.waiting { border-left-color: var(--amber); }
   .conv-list { flex: 1; overflow-y: auto; }
   .group-label {
     padding: 8px 14px 4px; font-size: 11px; color: var(--text-sub); font-weight: 600;
@@ -66,6 +73,7 @@
   .conv-item .meta { font-size: 11px; color: var(--text-sub); display: flex; align-items: center; gap: 6px; }
   .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   .dot.running { background: var(--amber); }
+  .dot.waiting { background: var(--amber); }
   .dot.done { background: var(--green); }
   .dot.failed { background: var(--red); }
 
@@ -232,16 +240,24 @@
     <div class="panel-head">对话列表</div>
     <div class="conv-toolbar">
       <button class="btn-new" onclick="newConversation()">+ 新建对话</button>
+      <input class="search" placeholder="🔍 搜索会话…">
+      <div class="status-tabs">
+        <button class="status-tab active" onclick="filterList('all', this)">全部 <span class="count">(6)</span></button>
+        <button class="status-tab" onclick="filterList('running', this)">运行中 <span class="count">(2)</span></button>
+        <button class="status-tab" onclick="filterList('waiting', this)">待审批 <span class="count">(1)</span></button>
+        <button class="status-tab" onclick="filterList('done', this)">已完成 <span class="count">(2)</span></button>
+        <button class="status-tab" onclick="filterList('failed', this)">失败 <span class="count">(1)</span></button>
+      </div>
     </div>
     <div class="conv-list">
-      <div class="group-label">进行中 <span class="count">(2)</span></div>
-      <div class="conv-item active" onclick="showView('chat', this)">
+      <!-- running -->
+      <div class="conv-item active" data-status="running" onclick="showView('chat', this)">
         <div class="title">修复登录页 token 刷新</div>
-        <div class="meta"><span class="dot running"></span>执行中 · 刚刚 <span class="agent-badge">claude-code</span> <span class="type-tag chat">聊天</span></div>
+        <div class="meta"><span class="dot running"></span>10 分钟前 <span class="agent-badge">claude-code</span> <span class="type-tag chat">聊天</span></div>
       </div>
-      <div class="conv-item expanded" id="wfConv">
+      <div class="conv-item expanded" id="wfConv" data-status="running">
         <div class="title" onclick="showView('wf', this.parentNode)"><span class="caret" onclick="event.stopPropagation(); toggleSteps(event)">▸</span> 发布流水线：v2.3 上线</div>
-        <div class="meta" onclick="showView('wf', this.parentNode)"><span class="dot running"></span>执行中 · 1h <span class="agent-badge">claude-code</span> <span class="type-tag wf">工作流</span></div>
+        <div class="meta" onclick="showView('wf', this.parentNode)"><span class="dot running"></span>1 小时前 <span class="agent-badge">claude-code</span> <span class="type-tag wf">工作流</span></div>
       </div>
       <div class="conv-steps" id="wfConvSteps">
         <div class="conv-step" onclick="showStep('1·拉取代码并安装依赖','done',this)"><span class="cs-dot done">✓</span>1 · 拉取代码并安装依赖</div>
@@ -250,23 +266,24 @@
         <div class="conv-step" onclick="showStep('4·部署预发 + 人工审查','pending',this)"><span class="cs-dot pending">4</span>4 · 部署预发 + 人工审查</div>
         <div class="conv-step" onclick="showStep('5·灰度发布生产','pending',this)"><span class="cs-dot pending">5</span>5 · 灰度发布生产</div>
       </div>
-      <div class="group-label">已完成 <span class="count">(3)</span></div>
-      <div class="conv-item" onclick="showView('chat', this)">
+      <!-- waiting approval -->
+      <div class="conv-item waiting" data-status="waiting" onclick="showView('chat', this)">
         <div class="title">重构用户模块的鉴权中间件</div>
-        <div class="meta"><span class="dot done"></span>已完成 · 昨天 <span class="agent-badge">claude-code</span> <span class="type-tag chat">聊天</span></div>
+        <div class="meta"><span class="dot waiting"></span>需人工确认 · 昨天 <span class="agent-badge">claude-code</span> <span class="type-tag chat">聊天</span></div>
       </div>
-      <div class="conv-item" onclick="showView('chat', this)">
+      <!-- done -->
+      <div class="conv-item" data-status="done" onclick="showView('chat', this)">
         <div class="title">解释一下这段正则</div>
-        <div class="meta"><span class="dot done"></span>已完成 · 2天前 <span class="agent-badge">aider</span> <span class="type-tag chat">聊天</span></div>
+        <div class="meta"><span class="dot done"></span>2 天前 <span class="agent-badge">aider</span> <span class="type-tag chat">聊天</span></div>
       </div>
-      <div class="conv-item" onclick="showView('wf', this)">
+      <div class="conv-item" data-status="done" onclick="showView('wf', this)">
         <div class="title">每日依赖安全扫描</div>
-        <div class="meta"><span class="dot done"></span>已完成 · 3天前 <span class="agent-badge">claude-code</span> <span class="type-tag wf">工作流</span></div>
+        <div class="meta"><span class="dot done"></span>3 天前 <span class="agent-badge">claude-code</span> <span class="type-tag wf">工作流</span></div>
       </div>
-      <div class="group-label">失败 <span class="count">(1)</span></div>
-      <div class="conv-item" onclick="showView('chat', this)">
+      <!-- failed -->
+      <div class="conv-item" data-status="failed" onclick="showView('chat', this)">
         <div class="title">迁移数据库到 PG</div>
-        <div class="meta"><span class="dot failed"></span>失败 · 3天前 <span class="agent-badge">open-code</span> <span class="type-tag chat">聊天</span></div>
+        <div class="meta"><span class="dot failed"></span>3 天前 <span class="agent-badge">open-code</span> <span class="type-tag chat">聊天</span></div>
       </div>
     </div>
   </div>
@@ -492,6 +509,13 @@ Step 8/14 : RUN npm run build …</div>
     const steps = document.getElementById('wfConvSteps');
     const expanded = conv.classList.toggle('expanded');
     steps.style.display = expanded ? 'block' : 'none';
+  }
+  function filterList(status, btn) {
+    document.querySelectorAll('.status-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.conv-item[data-status]').forEach(item => {
+      item.style.display = (status === 'all' || item.dataset.status === status) ? '' : 'none';
+    });
   }
   function showView(type, el, keepTitle) {
     // 列表高亮
