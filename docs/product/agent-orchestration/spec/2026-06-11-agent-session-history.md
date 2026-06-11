@@ -96,7 +96,7 @@
 | `projectId` / `agentRuntime` / `createdBy` / `startedAt` / `endedBy` | - | 概览字段 |
 | `runId` | string | 关联任务 |
 | `agentFlow` | object | `{ flowRef, version, status, steps[], progress: {completed, total}, activeStep }`。`status` 为 AgentFlow 整体状态（running / suspended / completed / failed）；steps 含 `stepId` / `name` / `status` / `order` / `conversationId`；workflow 类型时 progress 与 activeStep 非空 |
-| `eventSource` | object | `{ type, summary }`，事件来源 |
+| `eventSource` | object | 触发来源溯源信息，**仅 `event` 类型有值**（`ad-hoc` 手动创建、`scheduled` 定时触发时为空）。`{ type, summary }`：`type` 为触发事件类型（如 GitHub Release / PR / Webhook），`summary` 为事件摘要（如"发布 tag v2.3.0"）。用于会话详情概览区展示"由什么外部事件触发"，供溯源与审计 |
 | `messages` | object[] | 对话历史 |
 
 轮询刷新 AgentFlow 状态直接走会话详情接口，前端按固定间隔（运行中 5~10s，待审批 10~15s，完成/失败停止）拉取 `GET /conversations/{id}`，仅取 `agentFlow` 字段更新中间栏流程图。
@@ -141,9 +141,11 @@
 | `steps[].order` | int | 排序序号 |
 | `steps[].conversationId` | string | step 对应的独立 conversation（可用于查询对话）|
 
-### 事件来源（内嵌）
+### 事件来源（内嵌，仅 `event` 类型有值）
+
+记录会话由什么外部事件触发，供溯源与审计。`ad-hoc`（手动）、`scheduled`（定时）类型为空。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `eventSource.type` | string | 事件类型（如 GitHub Release）|
-| `eventSource.summary` | string | 事件摘要 |
+| `eventSource.type` | string | 触发事件类型（如 GitHub Release / PR / Webhook）|
+| `eventSource.summary` | string | 事件摘要（如"发布 tag v2.3.0"）|
