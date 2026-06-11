@@ -95,7 +95,7 @@
 | `conversationId` / `title` / `type` / `status` | - | 基本信息 |
 | `projectId` / `agentRuntime` / `createdBy` / `startedAt` / `endedBy` | - | 概览字段 |
 | `runId` | string | 关联任务 |
-| `agentFlow` | object | `{ flowRef, version, steps[], progress: {completed, total}, activeStep }`。steps 含 `stepId` / `name` / `status` / `order` / `conversationId`；workflow 类型时 progress 与 activeStep 非空 |
+| `agentFlow` | object | `{ flowRef, version, status, steps[], progress: {completed, total}, activeStep }`。`status` 为 AgentFlow 整体状态（running / suspended / completed / failed）；steps 含 `stepId` / `name` / `status` / `order` / `conversationId`；workflow 类型时 progress 与 activeStep 非空 |
 | `eventSource` | object | `{ type, summary }`，事件来源 |
 | `messages` | object[] | 对话历史 |
 
@@ -131,6 +131,9 @@
 |---|---|---|
 | `flowRef` | string | AgentFlow 引用 |
 | `version` | string | AgentFlow 版本 |
+| `status` | enum | AgentFlow 整体状态：running / suspended / completed / failed |
+| `progress` | object | `{ completed, total }` step 进度计数 |
+| `activeStep` | string | 当前执行中的 stepId |
 | `steps[]` | array | step 列表 |
 | `steps[].stepId` | string | step 标识 |
 | `steps[].name` | string | step 名称 |
