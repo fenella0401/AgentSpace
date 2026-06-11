@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>通用聊天模块 — 布局原型</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #f7f8fa;
+    --panel: #ffffff;
+    --border: #e3e6ea;
+    --text: #1f2329;
+    --text-sub: #8a9099;
+    --accent: #2563eb;
+    --accent-soft: #eef3ff;
+    --green: #16a34a;
+    --red: #dc2626;
+    --amber: #d97706;
+    --mono: "SF Mono", "Menlo", "Consolas", monospace;
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+  }
+  .app { flex: 1; display: grid; grid-template-columns: 260px 1fr 1fr; height: 100vh; }
+
+  /* 通用面板 */
+  .col { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid var(--border); }
+  .col:last-child { border-right: none; }
+  .panel-head {
+    height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 14px; border-bottom: 1px solid var(--border); background: var(--panel);
+    font-weight: 600; font-size: 13px;
+  }
+  .panel-head .sub { font-weight: 400; color: var(--text-sub); font-size: 12px; }
+
+  /* ---- 左：对话列表 ---- */
+  .conv-col { background: var(--panel); }
+  .conv-toolbar { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+  .btn-new {
+    background: var(--accent); color: #fff; border: none; border-radius: 6px;
+    padding: 8px; font-size: 13px; cursor: pointer; font-weight: 500;
+  }
+  .search { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+  .filters { display: flex; gap: 6px; }
+  .filters select { flex: 1; border: 1px solid var(--border); border-radius: 6px; padding: 5px; font-size: 11px; color: var(--text-sub); background: #fff; }
+  .conv-list { flex: 1; overflow-y: auto; }
+  .group-label {
+    padding: 8px 14px 4px; font-size: 11px; color: var(--text-sub); font-weight: 600;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .group-label .count { color: var(--text-sub); font-weight: 400; }
+  .conv-item {
+    padding: 9px 14px; cursor: pointer; border-left: 2px solid transparent;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .conv-item:hover { background: var(--bg); }
+  .conv-item.active { background: var(--accent-soft); border-left-color: var(--accent); }
+  .conv-item .title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .conv-item .meta { font-size: 11px; color: var(--text-sub); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot.running { background: var(--amber); }
+  .dot.done { background: var(--green); }
+  .dot.failed { background: var(--red); }
+
+  /* 左栏 workflow 会话的内嵌 step 列表 */
+  .conv-steps { background: #fbfcfd; border-left: 2px solid var(--accent-soft); }
+  .conv-step {
+    padding: 6px 14px 6px 30px; font-size: 12px; color: var(--text-sub);
+    display: flex; align-items: center; gap: 7px; cursor: pointer;
+  }
+  .conv-step:hover { background: var(--bg); }
+  .conv-step.cur { color: var(--text); font-weight: 500; }
+  .cs-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; color: #fff; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .cs-dot.done { background: var(--green); }
+  .cs-dot.running { background: var(--amber); }
+  .cs-dot.pending { background: #cbd2da; }
+  .cs-dot.failed { background: var(--red); }
+  .conv-item .caret { font-size: 10px; color: var(--text-sub); transition: transform .15s; }
+  .conv-item.expanded .caret { transform: rotate(90deg); }
+
+  /* ---- 中：对话详情 + 输入 ---- */
+  .chat-col { background: var(--bg); }
+  .chat-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { display: flex; flex-direction: column; gap: 4px; max-width: 90%; }
+  .msg.user { align-self: flex-end; align-items: flex-end; }
+  .msg .role { font-size: 11px; color: var(--text-sub); }
+  .bubble { padding: 9px 12px; border-radius: 10px; line-height: 1.5; }
+  .msg.user .bubble { background: var(--accent); color: #fff; }
+  .msg.agent .bubble { background: var(--panel); border: 1px solid var(--border); }
+  .thinking { color: var(--text-sub); font-style: italic; font-size: 12px; padding: 4px 12px; }
+  .tool-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    font-family: var(--mono); font-size: 12px; overflow: hidden; max-width: 90%;
+  }
+  .tool-card .tc-head { padding: 7px 10px; background: #fafbfc; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .tool-card .tc-head .ico { color: var(--accent); }
+  .tool-card .tc-body { padding: 8px 10px; color: var(--text-sub); white-space: pre-wrap; }
+  .result-card {
+    background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--green);
+    border-radius: 8px; padding: 10px 12px; max-width: 90%;
+  }
+  .result-card .rc-title { font-weight: 600; margin-bottom: 4px; }
+  .changes-badge {
+    margin-top: 8px; display: inline-flex; align-items: center; gap: 5px;
+    background: var(--accent-soft); color: var(--accent); padding: 4px 9px; border-radius: 6px;
+    font-size: 12px; cursor: pointer;
+  }
+  .chat-input { flex-shrink: 0; border-top: 1px solid var(--border); background: var(--panel); padding: 12px; }
+  .chat-input .box { border: 1px solid var(--border); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .chat-input textarea { border: none; resize: none; outline: none; font-family: inherit; font-size: 13px; height: 44px; }
+  .chat-input .row { display: flex; justify-content: space-between; align-items: center; }
+  .chat-input .opts { font-size: 11px; color: var(--text-sub); }
+  .btn-send { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 7px 18px; cursor: pointer; font-size: 13px; }
+
+  /* ---- 右：文件列表 + 文件详情 ---- */
+  .file-col { display: flex; flex-direction: column; }
+  .file-list-pane { flex: 0 0 40%; display: flex; flex-direction: column; border-bottom: 1px solid var(--border); background: var(--panel); }
+  .file-list { overflow-y: auto; flex: 1; }
+  .file-item {
+    padding: 8px 14px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 12px; border-left: 2px solid transparent;
+  }
+  .file-item:hover { background: var(--bg); }
+  .file-item.active { background: var(--accent-soft); border-left-color: var(--accent); }
+  .file-item .tag { width: 16px; text-align: center; font-weight: 700; border-radius: 3px; }
+  .tag.M { color: var(--amber); }
+  .tag.A { color: var(--green); }
+  .tag.D { color: var(--red); }
+  .file-item .fpath { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-item .stat { font-size: 11px; }
+  .stat .add { color: var(--green); }
+  .stat .del { color: var(--red); }
+  .file-detail-pane { flex: 1; display: flex; flex-direction: column; background: var(--panel); min-height: 0; }
+  .diff { flex: 1; overflow: auto; font-family: var(--mono); font-size: 12px; line-height: 1.6; padding: 8px 0; }
+  .diff .line { padding: 0 14px; white-space: pre; }
+  .diff .hunk { color: var(--accent); background: var(--accent-soft); }
+  .diff .add { background: #e6f7ed; color: #14753a; }
+  .diff .del { background: #fdecec; color: #b42318; }
+  .diff .ctx { color: var(--text); }
+  .empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-sub); font-size: 12px; }
+  .badge-num { background: var(--accent); color: #fff; border-radius: 9px; padding: 1px 7px; font-size: 11px; }
+
+  /* 会话类型标签 */
+  .type-tag { font-size: 10px; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
+  .type-tag.chat { background: #eef3ff; color: var(--accent); }
+  .type-tag.wf { background: #f3eeff; color: #7c3aed; }
+
+  /* ---- 中：workflow 视图 ---- */
+  .wf-body { flex: 1; overflow-y: auto; padding: 16px; }
+  .wf-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .wf-head .wf-name { font-weight: 600; font-size: 14px; }
+  .wf-progress { font-size: 12px; color: var(--text-sub); margin-bottom: 16px; }
+  .wf-steps { display: flex; flex-direction: column; gap: 0; position: relative; }
+  .wf-step { display: flex; gap: 12px; padding-bottom: 18px; position: relative; }
+  .wf-step:not(:last-child)::before {
+    content: ''; position: absolute; left: 10px; top: 22px; bottom: 0; width: 2px; background: var(--border);
+  }
+  .wf-step .node {
+    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; z-index: 1;
+    display: flex; align-items: center; justify-content: center; font-size: 11px; color: #fff; font-weight: 700;
+  }
+  .node.done { background: var(--green); }
+  .node.running { background: var(--amber); }
+  .node.pending { background: #cbd2da; }
+  .node.failed { background: var(--red); }
+  .wf-step .step-body { flex: 1; }
+  .wf-step .step-title { font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .wf-step .step-state { font-size: 11px; color: var(--text-sub); }
+  .wf-step .step-card {
+    margin-top: 6px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 12px; color: var(--text-sub);
+  }
+  .step-gate { margin-top: 6px; display: inline-flex; gap: 8px; }
+  .step-gate button { font-size: 11px; padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; background: #fff; }
+  .step-gate .approve { background: var(--green); color: #fff; border: none; }
+
+  /* 中间顶部：基本信息栏 */
+  .info-bar { flex-shrink: 0; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  .info-meta {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px 20px; font-size: 12px;
+  }
+  .info-meta .item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .info-meta .item > span { color: var(--text-sub); font-size: 11px; }
+  .info-meta .item b { color: var(--text); font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .event-box {
+    margin-top: 9px; background: #fafbfc; border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 6px; padding: 8px 10px; font-size: 12px;
+  }
+  .event-box .ev-head { display: flex; align-items: center; gap: 6px; color: var(--accent); font-weight: 500; margin-bottom: 3px; }
+  .event-box .ev-desc { color: var(--text); line-height: 1.5; }
+  .event-box .ev-link { color: var(--accent); text-decoration: none; }
+
+  /* AgentFlow 水平流程 */
+  .flow-bar { margin-top: 9px; }
+  .flow-bar .fb-label { font-size: 11px; color: var(--text-sub); margin-bottom: 6px; }
+  .flow-steps { display: flex; align-items: center; gap: 0; overflow-x: auto; padding-bottom: 4px; }
+  .flow-node {
+    display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--panel); flex-shrink: 0; font-size: 12px;
+  }
+  .flow-node .fn-dot { width: 16px; height: 16px; border-radius: 50%; color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .fn-dot.done { background: var(--green); }
+  .fn-dot.running { background: var(--amber); }
+  .fn-dot.pending { background: #cbd2da; }
+  .fn-dot.failed { background: var(--red); }
+  .flow-node.cur { border-color: var(--amber); background: #fffbeb; }
+  .flow-arrow { color: var(--text-sub); padding: 0 6px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 左：对话列表 -->
+  <div class="col conv-col">
+    <div class="panel-head">对话列表</div>
+    <div class="conv-toolbar">
+      <button class="btn-new">+ 新建对话</button>
+    </div>
+    <div class="conv-list">
+      <div class="group-label">进行中 <span class="count">(2)</span></div>
+      <div class="conv-item active" onclick="showView('chat', this)">
+        <div class="title">修复登录页 token 刷新</div>
+        <div class="meta"><span class="dot running"></span>执行中 · 刚刚 <span class="type-tag chat">聊天</span></div>
+      </div>
+      <div class="conv-item expanded" id="wfConv">
+        <div class="title" onclick="showView('wf', this.parentNode)"><span class="caret" onclick="event.stopPropagation(); toggleSteps(event)">▸</span> 发布流水线：v2.3 上线</div>
+        <div class="meta" onclick="showView('wf', this.parentNode)"><span class="dot running"></span>执行中 · 1h <span class="type-tag wf">工作流</span></div>
+      </div>
+      <div class="conv-steps" id="wfConvSteps">
+        <div class="conv-step" onclick="showStep('1·拉取代码并安装依赖','done',this)"><span class="cs-dot done">✓</span>1 · 拉取代码并安装依赖</div>
+        <div class="conv-step" onclick="showStep('2·运行单元测试','done',this)"><span class="cs-dot done">✓</span>2 · 运行单元测试</div>
+        <div class="conv-step cur" onclick="showStep('3·构建镜像并推送','running',this)"><span class="cs-dot running">▶</span>3 · 构建镜像并推送</div>
+        <div class="conv-step" onclick="showStep('4·部署预发 + 人工审查','pending',this)"><span class="cs-dot pending">4</span>4 · 部署预发 + 人工审查</div>
+        <div class="conv-step" onclick="showStep('5·灰度发布生产','pending',this)"><span class="cs-dot pending">5</span>5 · 灰度发布生产</div>
+      </div>
+      <div class="group-label">已完成 <span class="count">(3)</span></div>
+      <div class="conv-item" onclick="showView('chat', this)">
+        <div class="title">重构用户模块的鉴权中间件</div>
+        <div class="meta"><span class="dot done"></span>已完成 · 昨天 <span class="type-tag chat">聊天</span></div>
+      </div>
+      <div class="conv-item" onclick="showView('chat', this)">
+        <div class="title">解释一下这段正则</div>
+        <div class="meta"><span class="dot done"></span>已完成 · 2天前 <span class="type-tag chat">聊天</span></div>
+      </div>
+      <div class="conv-item" onclick="showView('wf', this)">
+        <div class="title">每日依赖安全扫描</div>
+        <div class="meta"><span class="dot done"></span>已完成 · 3天前 <span class="type-tag wf">工作流</span></div>
+      </div>
+      <div class="group-label">失败 <span class="count">(1)</span></div>
+      <div class="conv-item" onclick="showView('chat', this)">
+        <div class="title">迁移数据库到 PG</div>
+        <div class="meta"><span class="dot failed"></span>失败 · 3天前 <span class="type-tag chat">聊天</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 中：对话详情 / workflow 视图 + 输入 -->
+  <div class="col chat-col">
+    <div class="panel-head" id="centerTitle">
+      修复登录页 token 刷新
+      <span class="sub">claude-code · my-web-app</span>
+    </div>
+
+    <!-- 基本信息栏：聊天 -->
+    <div class="info-bar" id="infoChat">
+      <div class="info-meta">
+        <div class="item"><span>会话名称</span><b>修复登录页 token 刷新</b></div>
+        <div class="item"><span>类型</span><b>聊天</b></div>
+        <div class="item"><span>关联任务</span><b>—</b></div>
+        <div class="item"><span>状态</span><b>执行中</b></div>
+        <div class="item"><span>运行时</span><b>claude-code</b></div>
+        <div class="item"><span>项目</span><b>my-web-app</b></div>
+        <div class="item"><span>发起人</span><b>张三</b></div>
+        <div class="item"><span>开始时间</span><b>今天 14:02</b></div>
+      </div>
+    </div>
+
+    <!-- 基本信息栏：workflow（带事件触发概述）-->
+    <div class="info-bar" id="infoWf" style="display:none;">
+      <div class="info-meta">
+        <div class="item"><span>会话名称</span><b>发布流水线：v2.3 上线</b></div>
+        <div class="item"><span>类型</span><b>工作流</b></div>
+        <div class="item"><span>关联任务</span><b><a class="ev-link" href="#">run-8f3a2c</a></b></div>
+        <div class="item"><span>状态</span><b>执行中</b></div>
+        <div class="item"><span>当前步骤</span><b>3/5 · 构建镜像并推送</b></div>
+        <div class="item"><span>所属 AgentFlow</span><b>release-pipeline@v12</b></div>
+        <div class="item"><span>项目</span><b>my-web-app</b></div>
+        <div class="item"><span>开始时间</span><b>今天 13:10</b></div>
+        <div class="item"><span>结束人</span><b>—（进行中）</b></div>
+        <div class="item"><span>事件来源</span><b>GitHub Release</b></div>
+      </div>
+      <div class="flow-bar">
+        <div class="fb-label">AgentFlow · release-pipeline@v12</div>
+        <div class="flow-steps">
+          <div class="flow-node"><span class="fn-dot done">✓</span>拉取依赖</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node"><span class="fn-dot done">✓</span>单元测试</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node cur"><span class="fn-dot running">▶</span>构建镜像</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node"><span class="fn-dot pending">4</span>部署预发·审查</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node"><span class="fn-dot pending">5</span>灰度生产</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 聊天视图 -->
+    <div class="chat-body" id="chatView">
+      <div class="msg user">
+        <div class="role">我</div>
+        <div class="bubble">登录页 token 过期后不会自动刷新，用户会被踢出，帮我修一下。</div>
+      </div>
+      <div class="thinking">正在分析 token 刷新逻辑…</div>
+      <div class="tool-card">
+        <div class="tc-head"><span class="ico">▸</span> read_file · src/auth/token.ts</div>
+        <div class="tc-body">读取 token 刷新相关实现…</div>
+      </div>
+      <div class="tool-card">
+        <div class="tc-head"><span class="ico">▸</span> edit_file · src/auth/token.ts</div>
+        <div class="tc-body">在 401 拦截器中加入 refresh 重试逻辑</div>
+      </div>
+      <div class="msg agent">
+        <div class="role">Agent</div>
+        <div class="bubble">已定位问题：响应拦截器没有处理 token 过期。我加了刷新重试逻辑，并补了一个失败兜底跳登录。</div>
+      </div>
+      <div class="result-card">
+        <div class="rc-title">✓ 本轮完成</div>
+        <div>修复了 token 自动刷新，新增刷新失败的兜底处理。</div>
+        <div class="changes-badge">📄 本次改动 3 个文件 →</div>
+      </div>
+    </div>
+
+    <!-- workflow 视图：聊天内容（默认隐藏，AgentFlow 流程在上方信息栏）-->
+    <div class="chat-body" id="wfView" style="display:none;">
+      <div class="thinking">step 1 · 拉取代码并安装依赖 — 已完成（42s）</div>
+      <div class="thinking">step 2 · 运行单元测试 — 已完成（318 通过 / 0 失败）</div>
+      <div class="msg agent">
+        <div class="role">Agent · step 3 构建镜像</div>
+        <div class="bubble">开始构建镜像 app:v2.3，正在执行多阶段构建。</div>
+      </div>
+      <div class="tool-card">
+        <div class="tc-head"><span class="ico">▸</span> shell · docker build</div>
+        <div class="tc-body">$ docker build -t app:v2.3 .
+Step 8/14 : RUN npm run build …</div>
+      </div>
+      <div class="result-card" style="border-left-color: var(--amber);">
+        <div class="rc-title">⏸ 等待人工审查</div>
+        <div>step 4「部署到预发」需人工确认（requiresConfirmation）后继续。</div>
+        <div class="step-gate">
+          <button class="approve">批准继续</button>
+          <button>驳回</button>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="chat-input">
+      <div class="box">
+        <textarea placeholder="继续对话…（Enter 发送）"></textarea>
+        <div class="row">
+          <span class="opts">⏹ 中止 · 📎 项目: my-web-app</span>
+          <button class="btn-send">发送</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右：文件列表 + 文件详情 -->
+  <div class="col file-col">
+    <div class="file-list-pane">
+      <div class="panel-head">变更文件 <span class="badge-num">3</span></div>
+      <div class="file-list">
+        <div class="file-item active">
+          <span class="tag M">M</span>
+          <span class="fpath">src/auth/token.ts</span>
+          <span class="stat"><span class="add">+18</span> <span class="del">-4</span></span>
+        </div>
+        <div class="file-item">
+          <span class="tag M">M</span>
+          <span class="fpath">src/auth/interceptor.ts</span>
+          <span class="stat"><span class="add">+9</span> <span class="del">-2</span></span>
+        </div>
+        <div class="file-item">
+          <span class="tag A">A</span>
+          <span class="fpath">src/auth/refresh.test.ts</span>
+          <span class="stat"><span class="add">+34</span></span>
+        </div>
+      </div>
+    </div>
+    <div class="file-detail-pane">
+      <div class="panel-head">src/auth/token.ts <span class="sub">+18 -4</span></div>
+      <div class="diff">
+        <div class="line hunk">@@ -12,7 +12,9 @@ export class TokenManager {</div>
+        <div class="line ctx">   async getToken() {</div>
+        <div class="line del">-    return this.token;</div>
+        <div class="line add">+    if (this.isExpired()) {</div>
+        <div class="line add">+      await this.refresh();</div>
+        <div class="line add">+    }</div>
+        <div class="line add">+    return this.token;</div>
+        <div class="line ctx">   }</div>
+        <div class="line ctx"> </div>
+        <div class="line hunk">@@ -28,3 +30,8 @@ export class TokenManager {</div>
+        <div class="line ctx">   async refresh() {</div>
+        <div class="line del">-    const r = await api.refresh();</div>
+        <div class="line add">+    const r = await api.refresh().catch(() => null);</div>
+        <div class="line add">+    if (!r) {</div>
+        <div class="line add">+      redirectToLogin();</div>
+        <div class="line add">+      return;</div>
+        <div class="line add">+    }</div>
+        <div class="line ctx">     this.token = r.token;</div>
+        <div class="line ctx">   }</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+  // 每个 step 的对话内容（演示）
+  const stepChats = {
+    '1·拉取代码并安装依赖': `
+      <div class="msg agent"><div class="role">Agent · step 1</div><div class="bubble">克隆仓库 my-web-app@v2.3.0，安装依赖。</div></div>
+      <div class="tool-card"><div class="tc-head"><span class="ico">▸</span> shell · git clone & npm ci</div><div class="tc-body">$ git checkout v2.3.0\n$ npm ci  … 完成（42s）</div></div>
+      <div class="result-card"><div class="rc-title">✓ step 1 完成</div><div>依赖安装成功，耗时 42s。</div></div>`,
+    '2·运行单元测试': `
+      <div class="msg agent"><div class="role">Agent · step 2</div><div class="bubble">运行单元测试套件。</div></div>
+      <div class="tool-card"><div class="tc-head"><span class="ico">▸</span> shell · npm test</div><div class="tc-body">$ npm test\n318 passing (12s)</div></div>
+      <div class="result-card"><div class="rc-title">✓ step 2 完成</div><div>318 通过 / 0 失败。</div></div>`,
+    '3·构建镜像并推送': `
+      <div class="msg agent"><div class="role">Agent · step 3</div><div class="bubble">开始构建镜像 app:v2.3，正在执行多阶段构建。</div></div>
+      <div class="tool-card"><div class="tc-head"><span class="ico">▸</span> shell · docker build</div><div class="tc-body">$ docker build -t app:v2.3 .\nStep 8/14 : RUN npm run build …</div></div>
+      <div class="thinking">执行中 · 已 1m12s…</div>`,
+    '4·部署预发 + 人工审查': `
+      <div class="result-card" style="border-left-color: var(--amber);"><div class="rc-title">⏸ 等待人工审查</div><div>step 4「部署到预发」需人工确认（requiresConfirmation）后继续。</div><div class="step-gate"><button class="approve">批准继续</button><button>驳回</button></div></div>`,
+    '5·灰度发布生产': `<div class="thinking">step 5 · 灰度发布生产 — 待执行</div>`
+  };
+
+  function showStep(key, state, el) {
+    document.querySelectorAll('.conv-step').forEach(s => s.classList.remove('cur'));
+    if (el) el.classList.add('cur');
+    // 确保在 wf 视图
+    showView('wf', document.getElementById('wfConv'), true);
+    const wf = document.getElementById('wfView');
+    wf.innerHTML = stepChats[key] || '';
+    document.getElementById('centerTitle').innerHTML =
+      '发布流水线：v2.3 上线 <span class="sub">step · ' + key.split('·')[1] + '</span>';
+  }
+
+  function toggleSteps(e) {
+    const conv = document.getElementById('wfConv');
+    const steps = document.getElementById('wfConvSteps');
+    const expanded = conv.classList.toggle('expanded');
+    steps.style.display = expanded ? 'block' : 'none';
+  }
+  function showView(type, el, keepTitle) {
+    // 列表高亮
+    document.querySelectorAll('.conv-item').forEach(i => i.classList.remove('active'));
+    if (el) el.classList.add('active');
+    // 切换中间视图
+    const chat = document.getElementById('chatView');
+    const wf = document.getElementById('wfView');
+    const infoChat = document.getElementById('infoChat');
+    const infoWf = document.getElementById('infoWf');
+    const title = document.getElementById('centerTitle');
+    if (type === 'wf') {
+      chat.style.display = 'none';
+      wf.style.display = 'flex';
+      infoChat.style.display = 'none';
+      infoWf.style.display = 'block';
+      if (!keepTitle) title.innerHTML = el.querySelector('.title').innerText + ' <span class="sub">workflow · 5 steps</span>';
+    } else {
+      chat.style.display = 'flex';
+      wf.style.display = 'none';
+      infoChat.style.display = 'block';
+      infoWf.style.display = 'none';
+      title.innerHTML = (el ? el.querySelector('.title').innerText : '修复登录页 token 刷新') + ' <span class="sub">claude-code · my-web-app</span>';
+    }
+  }
+</script>
+</body>
+</html>
