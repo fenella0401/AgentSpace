@@ -164,6 +164,15 @@
   .empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-sub); font-size: 12px; }
   .badge-num { background: var(--accent); color: #fff; border-radius: 9px; padding: 1px 7px; font-size: 11px; }
 
+  /* 放大弹窗 */
+  .zoom-btn { cursor: pointer; color: var(--text-sub); font-size: 16px; background: none; border: none; padding: 0 2px; }
+  .zoom-btn:hover { color: var(--accent); }
+  .zoom-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; display: flex; align-items: center; justify-content: center; }
+  .zoom-overlay.hidden { display: none; }
+  .zoom-box { background: var(--panel); border-radius: 10px; width: 80vw; height: 85vh; display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0,0,0,.2); }
+  .zoom-head { height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; }
+  .zoom-body { flex: 1; overflow: auto; }
+
   /* 会话类型标签 */
   .type-tag { font-size: 10px; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
   .type-tag.chat { background: #eef3ff; color: var(--accent); }
@@ -430,8 +439,8 @@ Step 8/14 : RUN npm run build …</div>
       </div>
     </div>
     <div class="file-detail-pane">
-      <div class="panel-head">src/auth/token.ts <span class="sub">+18 -4</span></div>
-      <div class="diff">
+      <div class="panel-head">src/auth/token.ts <span class="sub">+18 -4</span> <button class="zoom-btn" onclick="openZoom()" title="放大查看">⛶</button></div>
+      <div class="diff" id="fileDiff">
         <div class="line hunk">@@ -12,7 +12,9 @@ export class TokenManager {</div>
         <div class="line ctx">   async getToken() {</div>
         <div class="line del">-    return this.token;</div>
@@ -457,6 +466,14 @@ Step 8/14 : RUN npm run build …</div>
 
 </div>
 
+</div>
+
+<!-- 文件详情放大弹窗 -->
+<div class="zoom-overlay hidden" id="zoomOverlay" onclick="closeZoom(event)">
+  <div class="zoom-box" onclick="event.stopPropagation()">
+    <div class="zoom-head" id="zoomHead">src/auth/token.ts <span class="sub">+18 -4</span> <button class="close" onclick="closeZoom()">✕</button></div>
+    <div class="zoom-body" id="zoomBody"></div>
+  </div>
 </div>
 
 <script>
@@ -545,6 +562,17 @@ Step 8/14 : RUN npm run build …</div>
       document.getElementById('agentSel').disabled = true;
       document.getElementById('agentHint').textContent = '已创建，不可更改';
     }
+
+  function openZoom() {
+    var d = document.getElementById("fileDiff");
+    document.getElementById("zoomBody").innerHTML = d ? d.innerHTML : "";
+    document.getElementById("zoomOverlay").classList.remove("hidden");
+  }
+  function closeZoom(e) {
+    if (e && e.target !== document.getElementById("zoomOverlay")) return;
+    document.getElementById("zoomOverlay").classList.add("hidden");
+  }
+
   }
 </script>
 </body>
