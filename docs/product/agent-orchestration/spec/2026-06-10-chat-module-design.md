@@ -74,7 +74,7 @@
 2. 发送后发起 SSE 订阅，流式渲染 agent 执行事件；一轮结束（`session.completed`）展示结果摘要；
 3. 渲染细节：thinking 灰字、message 气泡、tool_use/tool_result 折叠为可展开工具卡片；执行中输入框禁用 + 「中止」按钮（调 abort）；需人工确认的步骤显示「批准继续/驳回」；session.failed/aborted/timeout 以错误气泡提示、可重试。
 
-**「变更」视图**——本会话对代码仓的改动（详细 diff 在右栏）。
+**「变更」视图**——本会话对代码仓的改动（详细 diff 在右栏）；右栏文件详情提供「🔍 放大」按钮，点击弹窗全屏展示完整 diff。
 
 
 
@@ -148,7 +148,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `path` | string | 否 | 不传返回改动文件列表；带 `path` 返回该文件 unified diff |
+| `path` | string | 否 | 不传返回改动文件列表；带 `path` 返回该文件 unified diff。文件详情区提供「放大」按钮，点击以弹窗全屏展示完整 diff |
 
 代理到 Agent Core 的 changes 接口。
 
