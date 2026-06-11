@@ -82,97 +82,67 @@
 
 > 编排层对前端暴露的聊天会话 API。编排层内部再调 Agent Core 的 session 接口（见沙箱设计）。
 
-### 3.1 发起对话（创建会话 + 发送消息合二为一）
+### 3.1 对话 SSE（创建 + 发送 + 事件流合一）
 
-`POST /conversations`
+`GET /conversations/chat`
 
-首次调用创建 conversation，再次调用续聊。编排层内部：首次时初始化 session（调 Agent Core `POST /sessions`），续聊时复用已有 session 发 `GET /sessions/{id}/chat`。
-
-| 字段 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| `conversationId` | string | 否 | 续聊时传入；新对话不传，编排层自动创建 |
-| `content` | string | 是 | 用户输入 |
-| `title` | string | 否 | 会话标题，不传则首条消息后自动生成（仅首次生效）|
-| `projectId` | string | 是 | 所属项目（决定 repo、harness 配置等执行上下文）|
-| `agentRef` | string | 否 | 指定 agent；不传用项目默认 |
-
-返回：`conversationId`、`messageId`、`status` + SSE 流地址。编排层据此向 Agent Core 发起 session 对话并透传 SSE 事件。
-
-### 3.2 对话事件流（SSE）
-
-#### 建连
-
-前端在发消息后，建立 SSE 连接以持续接收执行事件：
-
-`GET /conversations/{id}/events?lastSequence=xxx`
+一个 SSE 长连接承载全部——首次建连即创建 conversation + 发消息，续聊同地址。编排层内部：首次时初始化 session，续聊时复用。
 
 | 参数 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `lastSequence` | long | 否 | 断线重连时传入上次收到的最末 `sequence`，编排层从该位置之后续传 |
+| `conversationId` | string | 否 | 续聊时传入；首次不传，编排层在 `conversation.created` 事件中返回 |
+| `content` | string | 是 | 用户输入 |
+| `title` | string | 否 | 会话标题，不传则首条消息后自动生成（仅首次生效）|
+| `projectId` | string | 是 | 所属项目 |
+| `agentRef` | string | 否 | 指定 agent；不传用项目默认 |
+| `lastSequence` | long | 否 | 断线重连续传游标 |
 
-编排层收到请求后，向 Agent Core `GET /sessions/{sessionId}/chat` 建连，将 Agent 执行事件**透传**给前端 SSE 流。编排层不做事件内容变换，仅做归属校验（确认事件 `sessionId` 与 conversation 映射一致）。
+#### SSE 事件流
 
-#### 事件格式
+| eventType | 说明 |
+|---|---|
+| `conversation.created` | 首次建连时返回 `conversationId` |
+| `thinking` / `message` | Agent 思考与回复（thinking 灰字、message 气泡）|
+| `tool_use` / `tool_result` | 工具调用（折叠卡片）|
+| `session.completed` | 执行成功（含 summary/commitSha/sessionRef）|
+| `session.failed` | 执行失败 |
+| `session.aborted` / `session.timeout` | 运行时异常 |
+
+事件基座：`eventId` / `eventType` / `sequence` / `timestamp` / `payload`。`sequence` 递增，断线重连贯 `lastSequence` 续传。
+
+#### 编排层衔接
 
 ```text
-event: thinking
-data: {"eventId":"evt-001","eventType":"thinking","sessionId":"s-123","sequence":1,"timestamp":"...","payload":{"content":"分析中…"}}
-
-event: tool_use
-data: {"eventId":"evt-002","eventType":"tool_use","sessionId":"s-123","sequence":2,"timestamp":"...","payload":{"tool":"read_file","input":{"path":"src/a.ts"}}}
-
-event: tool_result
-data: {"eventId":"evt-003","eventType":"tool_result","sessionId":"s-123","sequence":3,"timestamp":"...","payload":{"output":"…"}}
-
-event: message
-data: {"eventId":"evt-004","eventType":"message","sessionId":"s-123","sequence":4,"timestamp":"...","payload":{"content":"已完成修改"}}
-
-event: session.completed
-data: {"eventId":"evt-005","eventType":"session.completed","sessionId":"s-123","sequence":5,"timestamp":"...","payload":{"summary":"修复了 token 刷新","commitSha":"a1b2c3d","artifactRefs":[],"sessionRef":"srf-456"}}
+前端                                    编排层                          Agent Core
+ │  GET /conversations/chat              │                               │
+ │  (content, projectId, agentRef)       │                               │
+ │──────────────────────────────────────►│                               │
+ │                                       │  POST /sessions（首次）        │
+ │                                       │          GET /sessions/{id}/chat
+ │  SSE: conversation.created            │                               │
+ │◄──────────────────────────────────────│                               │
+ │  SSE: thinking / tool_use / message   │  SSE: thinking/tool_use/message│
+ │◄──────────────────────────────────────│◄──────────────────────────────│
+ │  SSE: session.completed               │  SSE: session.completed        │
+ │◄──────────────────────────────────────│◄──────────────────────────────│
 ```
 
-基座字段统一：`eventId`（去重）、`eventType`、`sessionId`、`sequence`（递增，断线重连游标）、`timestamp`、`payload`（按类型不同）。
+编排层是**透明代理**——不缓存事件、不转换内容。唯一逻辑：首次建连创建 conversation + 初始化 session；后续携带 `conversationId` 时复用映射。
 
 #### 前端处理
 
-- 建连后监听 SSE `message` 事件，按 `eventType` 分发渲染：`thinking`→灰字、`message`→气泡、`tool_use/tool_result`→折叠工具卡片、`session.completed/session.failed`→本轮结束、`session.aborted/session.timeout`→错误气泡
-- 收到 `session.completed` 或 `session.failed` 后关闭 SSE 连接
-- **断线重连**：记录最后收到的 `sequence`，重建 SSE 时传 `lastSequence`，编排层续传
+- 监听 SSE 按 `eventType` 分发；`conversation.created` 保存 conversationId；`session.completed/failed` 关闭连接
+- 继续对话：重新发起同一 URL 带 `conversationId`
+- 断线重连：带 `lastSequence`
 
-#### 编排层与 Agent Core 的衔接
+### 3.2 中止当前对话
 
-```text
-前端                             编排层                          Agent Core
- │  POST /conversations             │                               │
- │  (content, projectId,...)        │                               │
- │─────────────────────────────────►│                               │
- │                                  │  POST /sessions               │
- │                                  │  (首轮) 或复用已有 session      │
- │                                  │──────────────────────────────►│
- │                                  │                               │
- │  GET /conversations/{id}/events  │                               │
- │─────────────────────────────────►│                               │
- │                                  │  GET /sessions/{id}/chat      │
- │                                  │  (prompt)                     │
- │                                  │──────────────────────────────►│
- │                                  │                               │
- │  SSE: thinking                   │  SSE: thinking                 │
- │◄─────────────────────────────────│◄──────────────────────────────│
- │  SSE: tool_use                   │  SSE: tool_use                 │
- │◄─────────────────────────────────│◄──────────────────────────────│
- │  SSE: session.completed          │  SSE: session.completed        │
- │◄─────────────────────────────────│◄──────────────────────────────│
-```
-
-编排层是**透明代理**——不缓存事件、不转换内容、不做语义理解。唯一的编排层逻辑：将前端 `conversationId` 映射为 Agent Core `sessionId`，并发起/续接 session 对话。
-
-### 3.3 中止当前对话
 
 `POST /conversations/{id}/abort`
 
 停止本轮 agent 执行，保留会话可续聊。代理到 Agent Core 的 abort。
 
-### 3.4 查看本轮改动
+### 3.3 查看本轮改动
 
 `GET /conversations/{id}/changes`
 
@@ -182,7 +152,7 @@ data: {"eventId":"evt-005","eventType":"session.completed","sessionId":"s-123","
 
 代理到 Agent Core 的 changes 接口。
 
-### 3.5 会话列表
+### 3.4 会话列表
 
 `GET /conversations`
 
@@ -205,7 +175,7 @@ data: {"eventId":"evt-005","eventType":"session.completed","sessionId":"s-123","
 
 > 搜索、聚合、类型过滤为后续能力，本期不做（见 §5）。
 
-### 3.6 会话详情
+### 3.5 会话详情
 
 `GET /conversations/{id}`
 
@@ -220,7 +190,7 @@ data: {"eventId":"evt-005","eventType":"session.completed","sessionId":"s-123","
 | `eventSource` | object | 仅事件触发：`{ type, summary, ... }`，信息栏「事件来源」字段展示 |
 | `messages` | object[] | 对话历史：多轮消息、工具调用、改动摘要、各轮终态结果 |
 
-### 3.7 会话管理
+### 3.6 会话管理
 
 - `PATCH /conversations/{id}`：重命名（`title`）；
 - `POST /conversations/{id}/archive`：归档；
