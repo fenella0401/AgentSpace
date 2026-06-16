@@ -135,7 +135,21 @@ gate 拿到的是任务**最终整体产出**快照：
 
 ### 4.3 验收器形态
 
+> **验收器（Verifier）定义**：任务级 gate 的执行单元，由 gate 在**任务收尾时**调用，对**任务最终整体产出**（最终 commit / 总 diff / 各 step StepOutput）做一次判定，产出 PASS / FAIL / NEEDS_REVIEW。
+>
+> 区分两个维度，避免与会话级 Tier 1 混淆：
+> - **判定对象**：恒为**任务级产出快照**（不是某一次会话的改动）；
+> - **执行机制**：因类型而异——`script` / `llm` 为了执行检查这个动作，会向 Agent Core 起一个**验证专用的临时 session**（用完即弃）；`policy` 在编排层本地判定、不起 session。
+>
+> 关键：`script` / `llm` 起的「验证 session」是**验收器干活的手段**，与被验收的业务任务会话无关——它不消费对话历史，只在最终产出快照上跑检查。所以验收器是**任务级**的，哪怕它内部借用了 session 这个执行机制。
+
 三种验收器，可组合（一个任务配多个，全部 PASS 才算通过）：
+
+| 验收器 | 判定对象 | 执行机制 | 典型用途 |
+|---|---|---|---|
+| `script` | 任务最终 commit / workspace | 起验证专用临时 session 跑命令 | 全量测试、集成测试、构建、lint |
+| `llm` | 任务总 diff + 各 step 输出 | 起验证专用评审 session | 产出是否满足任务目标的语义评审 |
+| `policy` | 任务总 changes | 编排层本地判定，不起 session | 改动范围 / 规模 / 文件白黑名单 |
 
 #### （A）确定性脚本验收器 `script`
 
@@ -147,7 +161,7 @@ gate 拿到的是任务**最终整体产出**快照：
 | `timeoutSec` | int | 超时，默认 600 |
 | `passOn` | enum | `exit_zero`（默认）/ 自定义判定 |
 
-- 复用 Agent Core：编排层发起一个轻量 session（同 repo / 同最终 commit，无需 LLM），跑命令收集退出码 + stdout/stderr；
+- **执行机制**：编排层向 Agent Core 起一个验证专用的轻量 session（同 repo / 同最终 commit、无需 LLM），跑命令收集退出码 + stdout/stderr，跑完即弃。此 session 仅为执行检查，与被验任务的对话会话无关；
 - 退出码 0 → PASS；非 0 → FAIL，stdout/stderr 作为反馈；
 - 任务级最适合放**全量测试 / 集成测试 / 整体构建**——这类检查本就要等所有改动到齐。
 
@@ -161,13 +175,13 @@ gate 拿到的是任务**最终整体产出**快照：
 | `rubric` | string | 评审标准（prompt 模板，可引用任务目标与总 diff）|
 | `passThreshold` | number | 通过阈值（如评分 ≥ 0.8）|
 
-- 编排层渲染 rubric（注入任务目标 / 总 diff / 各 step StepOutput），发起评审 session；
+- **执行机制**：编排层渲染 rubric（注入任务目标 / 总 diff / 各 step StepOutput），向 Agent Core 起一个验证专用的评审 session，评审完即弃。评审 session 是新建的独立上下文，**不续接**被验任务的对话；
 - 评审 Agent 返回结构化裁决 `{ verdict: pass/fail/needs_review, score, reasons[] }`；
 - 注意：这与 AgentFlow 里手写一个 `verify` step（§7.4 范式）并存——手写 verify step 是流程显式节点（占 DAG、可人工确认），llm 验收器是任务收尾时 gate 内嵌的自动评审，二者按需选用。
 
 #### （C）规则 policy 验收器 `policy`
 
-确定性规则，不跑命令、不调 LLM，编排层本地判定，开销最低。
+确定性规则，**不起 session、不跑命令、不调 LLM**，编排层在任务总 changes 上本地判定，开销最低。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
