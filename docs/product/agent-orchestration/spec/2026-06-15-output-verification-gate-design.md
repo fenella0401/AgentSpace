@@ -143,55 +143,75 @@ gate 拿到的是任务**最终整体产出**快照：
 >
 > 关键：`script` / `llm` 起的「验证 session」是**验收器干活的手段**，与被验收的业务任务会话无关——它不消费对话历史，只在最终产出快照上跑检查。所以验收器是**任务级**的，哪怕它内部借用了 session 这个执行机制。
 
-三种验收器，可组合（一个任务配多个，全部 PASS 才算通过）：
+三种验收器，可组合（一个任务配多个，全部 PASS 才算通过）。
 
-| 验收器 | 判定对象 | 执行机制 | 典型用途 |
+### 4.3.1 准出规则目录
+
+一个任务可配置一条或多条准出规则。每条规则归属一种验收器类型（`script` / `llm` / `policy`），由对应验收器执行判定。
+
+| # | 规则 | 验收器 | 说明 | 判定逻辑 |
+|---|---|---|---|---|
+| R1 | **测试通过** | `script` | 执行测试命令（如 `npm test`、`pytest`、`go test ./...`）| 退出码 0 → PASS；非 0 → FAIL，stdout/stderr 作为反馈 |
+| R2 | **构建通过** | `script` | 执行构建命令（如 `npm run build`、`make`、`./gradlew build`）| 同 R1 |
+| R3 | **Lint / 代码检查通过** | `script` | 执行 lint / typecheck / 静态分析命令（如 `eslint`、`mypy`、`shellcheck`）| 同 R1 |
+| R4 | **自定义命令** | `script` | 任意确定性脚本（安全扫描、格式检查、license 审计等）| 同 R1，命令由配置指定 |
+| R5 | **代码评审** | `llm` | 评审 Agent 对任务总 diff 做代码质量评审（逻辑正确性、可读性、安全、性能）| 评分 ≥ 阈值 → PASS；评分介于阈值与下限 → NEEDS_REVIEW；评分 < 下限 → FAIL |
+| R6 | **需求验收** | `llm` | 评审 Agent 判断任务最终产出是否满足任务原始目标（根据各 step 输出 + 总 diff）| 同 R5，rubric 聚焦"目标达成度"而非代码细节 |
+| R7 | **改动文件白名单** | `policy` | 只允许改动指定路径（glob）| 任一改动文件不匹配白名单 → FAIL |
+| R8 | **改动文件黑名单** | `policy` | 禁止改动敏感路径（CI 配置、鉴权、生产配置、数据库迁移脚本等）| 任一改动文件命中黑名单 → FAIL |
+| R9 | **改动规模上限** | `policy` | 文件数 / 增删行数超出阈值时触发关注 | 超出上限 → NEEDS_REVIEW（不直接 FAIL，因为大规模改动可能合理但需人过目）|
+| R10 | **必须产出代码改动** | `policy` | 申明变更类的任务必须有代码产出（commit）| 任务声明应改代码却无 commit → FAIL |
+
+> R1~R4（script 类）的执行命令通过配置指定，编排层不内置命令；R5~R6（llm 类）的 rubric 为 prompt 模板，支持引用任务目标与总 diff；R7~R10（policy 类）在编排层本地判定，不调外部。
+
+### 4.3.2 验收器实现
+
+每类验收器对应一组规则，实现方式不同。
+
+| 验收器 | 判定对象 | 执行机制 | 适用规则 |
 |---|---|---|---|
-| `script` | 任务最终 commit / workspace | 起验证专用临时 session 跑命令 | 全量测试、集成测试、构建、lint |
-| `llm` | 任务总 diff + 各 step 输出 | 起验证专用评审 session | 产出是否满足任务目标的语义评审 |
-| `policy` | 任务总 changes | 编排层本地判定，不起 session | 改动范围 / 规模 / 文件白黑名单 |
+| `script` | 任务最终 commit / workspace | 起验证专用临时 session 跑命令，收集退出码 + stdout/stderr | R1 ~ R4 |
+| `llm` | 任务总 diff + 各 step 输出 | 起验证专用评审 session，评审完即弃（独立上下文，不续接原任务对话）| R5 ~ R6 |
+| `policy` | 任务总 changes | 编排层本地判定，不起 session | R7 ~ R10 |
 
-#### （A）确定性脚本验收器 `script`
+#### （A）`script` 验收器
 
-在任务最终产出所在的 workspace（D4：最终 commit 已在）执行预定义命令，按退出码判定。
-
-| 字段 | 类型 | 说明 |
+| 配置项 | 类型 | 说明 |
 |---|---|---|
-| `command` | string | 执行命令，如 `npm test`、`./gradlew check` |
+| `command` | string | 执行命令，如 `npm test -- --ci`、`./gradlew check` |
 | `timeoutSec` | int | 超时，默认 600 |
-| `passOn` | enum | `exit_zero`（默认）/ 自定义判定 |
+| `passOn` | enum | 判定条件，默认 `exit_zero`（退出码 0 → PASS）|
 
-- **执行机制**：编排层向 Agent Core 起一个验证专用的轻量 session（同 repo / 同最终 commit、无需 LLM），跑命令收集退出码 + stdout/stderr，跑完即弃。此 session 仅为执行检查，与被验任务的对话会话无关；
-- 退出码 0 → PASS；非 0 → FAIL，stdout/stderr 作为反馈；
-- 任务级最适合放**全量测试 / 集成测试 / 整体构建**——这类检查本就要等所有改动到齐。
+- 编排层向 Agent Core 起一个验证专用的轻量 session（同 repo / 同最终 commit、无需 LLM），跑完即弃；
+- 退出码 0 → PASS；非 0 → FAIL，stdout/stderr 作为反馈写入验收报告；
+- 多条 script 规则可合为一条命令（`npm test && npm run lint`），也可拆开独立配置以便定位失败原因。
 
-#### （B）LLM-judge 验收器 `llm`
+#### （B）`llm` 验收器
 
-用一个评审 Agent 评估任务最终产出是否满足任务目标（D5：作为 gate 内部调用，不占 DAG 节点）。
-
-| 字段 | 类型 | 说明 |
+| 配置项 | 类型 | 说明 |
 |---|---|---|
-| `judgeAgentRef` | string | 评审用 agent 快照引用 |
-| `rubric` | string | 评审标准（prompt 模板，可引用任务目标与总 diff）|
-| `passThreshold` | number | 通过阈值（如评分 ≥ 0.8）|
+| `judgeAgentRef` | string | 评审用 agent（如 Claude Opus）|
+| `rubric` | string | 评审标准模板，可引用 `{{taskGoal}}`、`{{totalDiff}}`、`{{stepOutputs}}` |
+| `passThreshold` | number | PASS 最低分，默认 0.8（0~1）|
+| `reviewThreshold` | number | 低于此分 → FAIL；介于 reviewThreshold ~ passThreshold → NEEDS_REVIEW，默认 0.5 |
 
-- **执行机制**：编排层渲染 rubric（注入任务目标 / 总 diff / 各 step StepOutput），向 Agent Core 起一个验证专用的评审 session，评审完即弃。评审 session 是新建的独立上下文，**不续接**被验任务的对话；
-- 评审 Agent 返回结构化裁决 `{ verdict: pass/fail/needs_review, score, reasons[] }`；
-- 注意：这与 AgentFlow 里手写一个 `verify` step（§7.4 范式）并存——手写 verify step 是流程显式节点（占 DAG、可人工确认），llm 验收器是任务收尾时 gate 内嵌的自动评审，二者按需选用。
+- 评审 Agent 返回结构化裁决：`{ verdict, score, reasons[] }`；
+- rubric 由模板作者编写，可针对任务类型定制（如"修 bug 任务"侧重回归风险、"新功能"侧重边界处理）；
+- 注意：这与 AgentFlow 里手写一个 `verify` step 并存——手写 verify step 是流程显式节点（占 DAG），llm 验收器是 gate 内嵌的自动评审，按需选用。
 
-#### （C）规则 policy 验收器 `policy`
+#### （C）`policy` 验收器
 
-确定性规则，**不起 session、不跑命令、不调 LLM**，编排层在任务总 changes 上本地判定，开销最低。
-
-| 字段 | 类型 | 说明 |
+| 配置项 | 类型 | 说明 |
 |---|---|---|
-| `fileAllowlist` | string[] | 允许改动的路径 glob，超出 → FAIL |
-| `fileDenylist` | string[] | 禁止改动的路径（CI 配置、鉴权、生产配置等），命中 → FAIL |
+| `fileAllowlist` | string[] | 允许改动的 glob 列表，未命中 → FAIL |
+| `fileDenylist` | string[] | 禁止改动的 glob 列表（如 `**/auth/**`、`**/ci/**`、`**/*.sql`），命中 → FAIL |
 | `maxFiles` | int | 改动文件数上限，超出 → NEEDS_REVIEW |
 | `maxLines` | int | 增删行数上限，超出 → NEEDS_REVIEW |
-| `requireCommit` | bool | 为 true 时声明应改代码却无 commit → FAIL |
+| `requireCommit` | bool | 为 true 则无 commit → FAIL |
 
-规则在任务总 changes 上判定，命中即出对应裁决。MVP 实现上述基础规则集，规则项可按需扩展。
+- 规则在任务总 changes（起始基线 → 最终 commit 的 diff）上本地判定，毫秒级；
+- 白/黑名单支持 glob 语法（`**/ci/**.yml`、`src/auth/**`），不区分大小写；
+- `maxFiles` / `maxLines` 仅触发 NEEDS_REVIEW（不直接 FAIL），因为大规模改动可能合理但需人过目。
 
 ### 4.4 裁决与动作
 
