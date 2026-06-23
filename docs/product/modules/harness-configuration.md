@@ -52,9 +52,9 @@ Harness 的配置顺序为：能力中心、Agent 角色、AgentFlow、知识库
 
 Skill 和 MCP 与 Agent 角色处于同一导航层级，不再嵌套在“能力中心”导航下。
 
-每个子模块独立编辑和保存。Harness 顶层提供 Publish，将当前已保存且校验通过的配置同步到 AgentCore 对应团队空间租户。
+每个子模块独立编辑和保存。Harness 顶层提供 Publish，将当前已保存且校验通过的配置同步到 AgentCore 对应团队空间运行域。
 
-首次 Publish 时，如 AgentCore 尚不存在对应团队空间租户，由系统完成初始化；失败时保留 AgentSpace 配置并展示可重试原因。
+首次 Publish 时，如 AgentCore 尚不存在对应团队空间运行域，由系统完成初始化；失败时保留 AgentSpace 配置并展示可重试原因。
 
 ---
 

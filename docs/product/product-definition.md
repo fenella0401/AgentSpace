@@ -5,11 +5,11 @@
 | 字段 | 内容 |
 | --- | --- |
 | 产品名称 | AgentSpace |
-| 最近更新 | 2026-06-22 |
+| 最近更新 | 2026-06-23 |
 | 文档状态 | 产品定义草案 |
 | 文档职责 | 定义产品总体定位、产品原则、核心概念、跨模块规则、产品边界和首期范围，并作为各功能模块文档的入口 |
 | 不包含 | 页面布局、字段级规则、操作流程、异常反馈等具体交互；此类内容由对应功能模块文档定义 |
-| 本次变更 | 在用户侧功能模块之外新增独立的 AgentSpace 后端管理面，补充 PDU 节点模板、节点管理员和 Extension 发布能力 |
+| 本次变更 | 团队空间独立创建；创建时自动记录创建者所属最子部门元数据，首版本仅查看不可修改 |
 | 安全机制 | 本文档及功能模块文档写入时需要产品经理人工确认 |
 
 ---
@@ -74,16 +74,15 @@ AgentSpace 的核心不是普通聊天产品，也不是传统项目管理系统
 
 | 角色 | 产品级职责摘要 |
 | --- | --- |
-| 系统管理员 | 创建租户、授予租户管理员、管理平台级事件源和 Agent 运行资源 |
+| 系统管理员 | 管理平台级事件源、Agent 运行资源和系统级治理配置 |
 | 系统节点管理员 | 管理系统及一级 PDU 节点模板，维护一级、二级部门节点管理员 |
 | 部门节点管理员 | 管理本部门节点模板，并按层级维护直属下级部门节点管理员 |
-| 租户管理员 | 治理租户内团队空间清单和租户级资源；不自动拥有具体团队空间权限 |
 | 团队创建者 | 创建团队空间，并默认拥有团队管理员和团队成员能力 |
 | 团队管理员 | 管理成员、Harness、任务配置及重要执行结果 |
 | 团队成员 | 发起临时任务，使用已发布能力，查看并处理被授权的任务实例 |
 | 访客 | 只读查看被授权的团队空间内容和执行记录 |
 
-团队空间内的完整权限矩阵和成员管理交互见[团队空间与成员](./modules/team-space-and-members.md)。PDU 节点管理员的授权边界见[AgentSpace 后端管理面](./modules/backend-management.md)。系统节点管理员和部门节点管理员均不因该身份自动获得租户或团队空间权限。
+团队空间内的完整权限矩阵和成员管理交互见[团队空间与成员](./modules/team-space-and-members.md)。PDU 节点管理员的授权边界见[AgentSpace 后端管理面](./modules/backend-management.md)。系统节点管理员和部门节点管理员均不因该身份自动获得团队空间权限。
 
 ---
 
@@ -91,7 +90,7 @@ AgentSpace 的核心不是普通聊天产品，也不是传统项目管理系统
 
 ### 6.1 团队空间
 
-团队空间是 AgentSpace 的基本工作单元，通常对应一个团队、项目、业务场景或长期任务域。空间内包含成员与权限、Harness、任务配置、任务运行记录、看板和文件变更记录。
+团队空间是 AgentSpace 的基本工作单元，通常对应一个团队、项目、业务场景或长期任务域。团队空间独立创建；创建时系统自动记录创建者所属最子部门作为所属部门元数据，首版本仅展示，不允许用户修改。空间内包含成员与权限、Harness、任务配置、任务运行记录、看板和文件变更记录。
 
 ### 6.2 Harness
 
@@ -177,22 +176,22 @@ PDU
                     ├── Package Artifact
                     └── AgentCenter Push Record
 
-Tenant
-  └── Team Space
-        ├── Member
-        ├── Harness
-        │     ├── Capability Center
-        │     │     ├── Skill
-        │     │     └── MCP
-        │     ├── Agent Role
-        │     ├── AgentFlow
-        │     │     └── Stage
-        │     │           └── Step
-        │     ├── Knowledge
-        │     └── Environment Variables
-        └── Task Config
-              ├── Event Task Config
-              └── Scheduled Task Config
+Team Space
+  ├── Department Metadata（创建者所属最子部门，只读）
+  ├── Member
+  ├── Harness
+  │     ├── Capability Center
+  │     │     ├── Skill
+  │     │     └── MCP
+  │     ├── Agent Role
+  │     ├── AgentFlow
+  │     │     └── Stage
+  │     │           └── Step
+  │     ├── Knowledge
+  │     └── Environment Variables
+  └── Task Config
+        ├── Event Task Config
+        └── Scheduled Task Config
 ```
 
 ### 7.2 运行态对象
@@ -269,7 +268,7 @@ Task Run
 - 事件任务和定时任务文档管理长期配置及其 Task Run；底层 Agent Run 详情统一跳转任务记录。
 - 临时任务只在任务记录模块发起和查看，不进入事件任务或定时任务配置清单。
 - PDU 节点模板和 Extension 属于独立后端管理面，不等同于团队空间 Harness，也不自动应用到团队空间。
-- 平台级租户治理仍保留为产品角色背景，不在本轮扩展为独立模块。
+- 团队空间不设置上级归属容器，空间治理只基于团队空间成员角色和只读的所属部门元数据。
 
 ---
 
@@ -283,7 +282,7 @@ Task Run
 | Extension 打包服务 | 根据 Extension 最新配置、AgentFlow 清单和 README 生成 ZIP 文件 |
 | Codehub | 知识库绑定 Codehub 仓库目录；AgentSpace 展示文件树、变更草稿和 diff |
 | eDevOps FE | 首期事件任务的外部事件源 |
-| DevUC | 提供公司统一身份、租户资格和权限能力 |
+| DevUC | 提供公司统一身份、用户所属部门和权限能力 |
 | 密钥管理系统 | 管理环境变量中的敏感凭证，AgentSpace 不存储或回显明文 |
 
 ---
@@ -291,22 +290,23 @@ Task Run
 ## 11. 跨模块一致性规则
 
 1. 所有运行态对象必须关联团队空间。
-2. 所有 Agent Run 必须记录触发来源及关联 Task Run。
-3. 所有 Agent Run 必须固化启动时使用的 Agent 角色、模型、Skill、MCP、知识库范围、环境变量引用和 AgentFlow 配置。
-4. 所有文件变更必须关联到具体 Agent Run。
-5. 所有 Waiting Human 状态必须有明确处理人或处理人范围。
-6. 所有人工确认、驳回、输入、重试、关闭和终止行为必须记录操作者与时间。
-7. 所有任务实例必须能够跳转到关联 Agent Run 或 AgentFlow Run。
-8. 所有 Agent Run 必须能够查看运行详情。
-9. 所有 AgentFlow Step Run 必须关联所属 Stage，并能够查看输入、输出、产物清单、自动门禁结果、自动重试和人工确认记录。
-10. 配置修改不会改写已启动运行的快照；历史运行按启动时配置解释。
-11. AgentSpace 不自建独立文件源。Agent 文件变更是对 Codehub 绑定目录的变更草稿或 diff，最终提交到 Codehub。
-12. 敏感环境变量不得出现在知识库、Prompt、日志、diff、错误详情、运行快照或前端回填值中。
-13. AgentFlow Step 的实际执行输入必须由所选 Agent 的 System Prompt 与 Step Input Prompt 拼接生成；Step 不得覆盖 Agent 的 System Prompt。
-14. AgentFlow 自动门禁仅校验指定产物清单是否存在变更；自动门禁通过后才能进入人工确认。
-15. 普通用户查看节点模板时只能读取最近成功发布版本，草稿和失败发布不得覆盖公开版本。
-16. 节点模板和节点管理员的写操作必须同时校验当前用户权限及 PDU 节点有效状态。
-17. Extension 打包必须基于打包时的最新配置生成 README 和 ZIP；每次成功重新打包将当前产物重置为未推送。推送只发送当前最新成功打包文件，不重新打包，并重新校验当前用户的节点权限与 AgentCenter 市场组织资格。
+2. 团队空间创建时必须记录创建者所属最子部门元数据；首版本该元数据仅展示，不允许用户修改。
+3. 所有 Agent Run 必须记录触发来源及关联 Task Run。
+4. 所有 Agent Run 必须固化启动时使用的 Agent 角色、模型、Skill、MCP、知识库范围、环境变量引用和 AgentFlow 配置。
+5. 所有文件变更必须关联到具体 Agent Run。
+6. 所有 Waiting Human 状态必须有明确处理人或处理人范围。
+7. 所有人工确认、驳回、输入、重试、关闭和终止行为必须记录操作者与时间。
+8. 所有任务实例必须能够跳转到关联 Agent Run 或 AgentFlow Run。
+9. 所有 Agent Run 必须能够查看运行详情。
+10. 所有 AgentFlow Step Run 必须关联所属 Stage，并能够查看输入、输出、产物清单、自动门禁结果、自动重试和人工确认记录。
+11. 配置修改不会改写已启动运行的快照；历史运行按启动时配置解释。
+12. AgentSpace 不自建独立文件源。Agent 文件变更是对 Codehub 绑定目录的变更草稿或 diff，最终提交到 Codehub。
+13. 敏感环境变量不得出现在知识库、Prompt、日志、diff、错误详情、运行快照或前端回填值中。
+14. AgentFlow Step 的实际执行输入必须由所选 Agent 的 System Prompt 与 Step Input Prompt 拼接生成；Step 不得覆盖 Agent 的 System Prompt。
+15. AgentFlow 自动门禁仅校验指定产物清单是否存在变更；自动门禁通过后才能进入人工确认。
+16. 普通用户查看节点模板时只能读取最近成功发布版本，草稿和失败发布不得覆盖公开版本。
+17. 节点模板和节点管理员的写操作必须同时校验当前用户权限及 PDU 节点有效状态。
+18. Extension 打包必须基于打包时的最新配置生成 README 和 ZIP；每次成功重新打包将当前产物重置为未推送。推送只发送当前最新成功打包文件，不重新打包，并重新校验当前用户的节点权限与 AgentCenter 市场组织资格。
 
 ---
 
@@ -341,7 +341,7 @@ eDevOps FE 中新增目标迭代需求后，事件任务触发需求开发 Agent
 3. 不替代 Codehub，Codehub 仍是代码和文件的源系统。
 4. 不自研底层 AgentRuntime，对接 AgentCore。
 5. 不承担 AgentCenter 市场中的 Skill、MCP 发布，以及插件审核、上架、下架和组织管理；Extension 创建及新版本推送通过 AgentCenter 能力完成。
-6. 不建设完整数据权限治理平台，只消费租户和团队空间授权结果。
+6. 不建设完整数据权限治理平台，只消费团队空间授权结果和只读 PDU 组织信息。
 7. 不直接面向外部客户开放，仅面向公司内部员工。
 8. 不维护 PDU 组织树，不支持在 AgentSpace 中新建、编辑、移动或删除部门节点。
 
